@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MLP 회귀 손계산 — 은닉층 2개 ReLU로 점수 예측</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Spectral:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+:root{
+  --paper:#FAF6EE; --panel:#F3ECDF; --ink:#2B2621; --muted:#6E645A; --rule:#DDD2C1;
+  --accent:#B0532F; --accent-soft:#F4DFD3; --test:#2F6B66; --test-soft:#DCEBE8;
+  --code-bg:#FFFDF8; --code-ink:#3A2E25; --out-bg:#F1EEE6;
+  --serif:'Spectral',Georgia,'Noto Serif KR',serif;
+  --sans:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'D2Coding',Consolas,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1E1B18; --panel:#28241F; --ink:#EDE6DA; --muted:#A99D8E; --rule:#3D372F;
+    --accent:#E08A63; --accent-soft:#3A2A22; --test:#6FB8B0; --test-soft:#1F3432;
+    --code-bg:#231F1B; --code-ink:#E9DFD0; --out-bg:#2B2621;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1E1B18; --panel:#28241F; --ink:#EDE6DA; --muted:#A99D8E; --rule:#3D372F;
+  --accent:#E08A63; --accent-soft:#3A2A22; --test:#6FB8B0; --test-soft:#1F3432;
+  --code-bg:#231F1B; --code-ink:#E9DFD0; --out-bg:#2B2621;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px);scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.75}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:48px;padding:0 24px}
+nav.side{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:100vh;overflow-y:auto;padding:40px 0 24px;border-right:1px solid var(--rule)}
+nav.side .brand{font-family:var(--serif);font-weight:700;font-size:19px;line-height:1.35;margin:0 16px 20px 0}
+nav.side ol{list-style:none;margin:0;padding:0;counter-reset:c}
+nav.side li{counter-increment:c}
+nav.side a{display:flex;gap:10px;padding:6px 12px 6px 0;color:var(--muted);text-decoration:none;font-size:14.5px;border-right:2px solid transparent;margin-right:-1px}
+nav.side a::before{content:counter(c);font-family:var(--mono);font-size:12px;min-width:18px;padding-top:2px;opacity:.8}
+nav.side a:hover{color:var(--ink)}
+nav.side a.on{color:var(--accent);border-right-color:var(--accent);font-weight:500}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding:48px 0 96px;min-width:0}
+header.hero{padding-bottom:28px;border-bottom:1px solid var(--rule);margin-bottom:12px}
+header.hero h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,4.4vw,44px);line-height:1.2;margin:0 0 16px;letter-spacing:-.01em}
+header.hero p{max-width:66ch;color:var(--muted);margin:0}
+.model-eq{margin:28px 0 0;padding:22px 24px;background:var(--panel);border-left:4px solid var(--accent);font-size:1.15em;overflow-x:auto}
+section{padding-top:44px}
+h2{font-family:var(--serif);font-size:27px;font-weight:700;margin:0 0 14px;display:flex;gap:14px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:15px;color:var(--accent);font-weight:600}
+h3{font-size:18px;font-weight:700;margin:28px 0 8px}
+h4{font-size:16px;margin:0 0 6px;font-weight:700}
+p,li{max-width:70ch}
+.tbl{overflow-x:auto;margin:16px 0;border:1px solid var(--rule);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:center}
+thead th{background:var(--panel);font-weight:700;font-size:13.5px}
+tr.sum td{font-weight:700;background:var(--accent-soft);border-bottom:none}
+table.test thead th{background:var(--test-soft)}
+.math{overflow-x:auto;overflow-y:hidden;margin:10px 0;padding:4px 0}
+.box{border:1px solid var(--rule);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--panel)}
+.box.key{border-left:4px solid var(--accent)}
+.box.test{border-left:4px solid var(--test);background:var(--test-soft)}
+.box p:last-child{margin-bottom:0}.box p:first-child{margin-top:0}
+.case{border:1px solid var(--rule);border-left:4px solid var(--test);border-radius:6px;padding:14px 18px;margin:14px 0;overflow-x:auto}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}
+.stat{border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
+.stat b{display:block;font-family:var(--serif);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{font-size:13.5px;color:var(--muted)}
+.stat.t b{color:var(--test)} .stat.a b{color:var(--accent)}
+pre{margin:14px 0;padding:16px 18px;overflow-x:auto;border-radius:6px;font-family:var(--mono);font-size:13.5px;line-height:1.6}
+pre.code{background:var(--code-bg);color:var(--code-ink);border:1px solid var(--rule)}
+pre.out{background:var(--out-bg);color:var(--ink);border:1px dashed var(--rule)}
+.cap{font-size:13px;color:var(--muted);margin:4px 0 -6px}
+figure{margin:18px 0}
+figure svg{width:100%;max-width:600px;height:auto;display:block}
+figcaption{font-size:14px;color:var(--muted);margin-top:6px}
+svg .grid{stroke:var(--rule);stroke-width:1}
+svg .tick{fill:var(--muted);font:12px var(--mono)}
+svg .ax{fill:var(--ink);font:600 13px var(--sans)}
+svg .lbl{fill:var(--ink);font:12.5px var(--sans)}
+svg .ideal{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:6 5}
+svg .res{stroke:var(--accent);stroke-width:1.6;opacity:.55}
+svg .res.te{stroke:var(--test);opacity:.8}
+svg .tr{fill:var(--accent);stroke:var(--paper);stroke-width:1.5}
+svg .edge{stroke:var(--rule);stroke-width:1.4}
+svg .nin{fill:var(--panel);stroke:var(--muted);stroke-width:1.5}
+svg .nh{fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.8}
+svg .nout{fill:var(--test-soft);stroke:var(--test);stroke-width:1.8}
+svg .nlab{fill:var(--ink);font:600 12.5px var(--sans)}
+svg .curve{fill:none;stroke:var(--accent);stroke-width:2.2}
+figure svg.wide{max-width:720px}
+svg .ts{fill:var(--test);stroke:var(--paper);stroke-width:1.5}
+code{font-family:var(--mono);font-size:.9em;background:var(--panel);padding:1px 5px;border-radius:3px}
+.theme-btn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:20px;padding:6px 14px;font:13px var(--sans);cursor:pointer}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 18px}
+  nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--rule);padding:24px 0 12px}
+  nav.side ol{display:flex;flex-wrap:wrap;gap:4px 14px}
+  nav.side a{border-right:none;padding:2px 0;font-size:13.5px}
+  main{padding-top:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="side" aria-label="목차">
+  <div class="brand">MLP 회귀<br>손계산 노트</div>
+  <ol>
+    <li><a href="#s1">선형회귀와 같은 원리</a></li>
+    <li><a href="#s2">네트워크 구조</a></li>
+    <li><a href="#s3">데이터 표준화</a></li>
+    <li><a href="#s4">가중치 초기화</a></li>
+    <li><a href="#s5">순전파</a></li>
+    <li><a href="#s6">손실 계산</a></li>
+    <li><a href="#s7">역전파</a></li>
+    <li><a href="#s8">가중치 갱신</a></li>
+    <li><a href="#s9">반복 학습</a></li>
+    <li><a href="#s10">학습 결과와 적합도</a></li>
+    <li><a href="#s11">테스트 3개 예측</a></li>
+    <li><a href="#s12">평가와 선형회귀 비교</a></li>
+    <li><a href="#s13">Python 검증</a></li>
+    <li><a href="#s14">정리</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>같은 데이터를 은닉층 2개<br>ReLU 신경망으로 예측하기</h1>
+  <p>다중회귀에서 쓴 학습 데이터 10개와 테스트 3개를 그대로 사용합니다. 계수를 한 번에 푸는 정규방정식 대신, 순전파 → 손실 → 역전파 → 갱신을 반복해 20개의 가중치를 찾아가는 과정을 숫자로 따라갑니다. 모든 수치는 numpy로 실제 실행한 값입니다.</p>
+  <div class="model-eq">\[\hat y=\Bigl(\operatorname{ReLU}\bigl(\operatorname{ReLU}(\tilde{\mathbf x}W^{(1)}+\mathbf b^{(1)})\,W^{(2)}+\mathbf b^{(2)}\bigr)\,W^{(3)}+b^{(3)}\Bigr)\sigma_y+\bar y\]</div>
+</header>
+
+<section id="s1">
+<h2><span class="n">1</span>선형회귀와 같은 원리</h2>
+<p>다중회귀와 MLP는 목표가 같습니다. 둘 다 예측값과 실제값의 차이를 제곱해 평균한 MSE를 가장 작게 만드는 파라미터를 찾습니다.</p>
+<div class="math">\[\mathcal L(\theta)=\frac1n\sum_{i=1}^{n}\bigl(\hat y_i(\theta)-y_i\bigr)^2\;\longrightarrow\;\min_\theta\]</div>
+<div class="tbl"><table>
+<thead><tr><th>구분</th><th style="text-align:left">다중회귀 (OLS)</th><th style="text-align:left">MLP (2-3-2-1, ReLU)</th></tr></thead>
+<tbody>
+<tr><td>모형</td><td style="text-align:left">ŷ = b₀ + b₁x₁ + b₂x₂ (평면)</td><td style="text-align:left">ReLU로 꺾인 조각별 선형 곡면</td></tr>
+<tr><td>파라미터 수</td><td style="text-align:left">3개</td><td style="text-align:left">20개</td></tr>
+<tr><td>손실 함수</td><td style="text-align:left">MSE (= SSE / n)</td><td style="text-align:left">MSE</td></tr>
+<tr><td>푸는 방법</td><td style="text-align:left">∂L/∂b = 0 → 닫힌 해 (XᵀX)⁻¹Xᵀy</td><td style="text-align:left">닫힌 해가 없음 → 경사하강법 반복</td></tr>
+<tr><td>해의 유일성</td><td style="text-align:left">볼록 함수, 해가 하나</td><td style="text-align:left">비볼록, 초기값에 따라 결과가 다름</td></tr>
+</tbody></table></div>
+<h3>경사하강법으로 풀어도 선형회귀 계수가 나온다</h3>
+<p>은닉층 없이 입력 2개 → 출력 1개인 "신경망"은 곧 선형회귀입니다. 이것을 아래와 같은 경사하강법(학습률 0.05, 2000회)으로 학습하면, 표준화 단위의 가중치는 \(w_1=0.4648,\;w_2=0.6902,\;b=0\)로 수렴합니다. 원래 단위로 되돌리면</p>
+<div class="math">\[b_j=w_j\cdot\frac{\sigma_y}{\sigma_{x_j}},\qquad b_0=\bar y+b\,\sigma_y-b_1\bar x_1-b_2\bar x_2\]</div>
+<div class="math">\[b_0=16.1325,\quad b_1=1.4306,\quad b_2=2.4422\]</div>
+<p>정규방정식으로 구한 \(16.1325,\;1.4306,\;2.4422\)와 같습니다. 경사하강법은 정규방정식과 같은 답을 반복으로 찾아가는 방법이고, 은닉층과 ReLU를 넣으면 닫힌 해를 쓸 수 없으니 반복만 남는다는 것이 이 노트의 출발점입니다.</p>
+</section>
+
+<section id="s2">
+<h2><span class="n">2</span>네트워크 구조</h2>
+<figure>
+<svg class='wide' viewBox='0 0 700 370' role='img' aria-label='2-3-2-1 신경망 구조도'>
+<line x1='90' y1='120' x2='270' y2='70' class='edge'/>
+<line x1='90' y1='120' x2='270' y2='180' class='edge'/>
+<line x1='90' y1='120' x2='270' y2='290' class='edge'/>
+<line x1='90' y1='240' x2='270' y2='70' class='edge'/>
+<line x1='90' y1='240' x2='270' y2='180' class='edge'/>
+<line x1='90' y1='240' x2='270' y2='290' class='edge'/>
+<line x1='270' y1='70' x2='450' y2='125' class='edge'/>
+<line x1='270' y1='70' x2='450' y2='235' class='edge'/>
+<line x1='270' y1='180' x2='450' y2='125' class='edge'/>
+<line x1='270' y1='180' x2='450' y2='235' class='edge'/>
+<line x1='270' y1='290' x2='450' y2='125' class='edge'/>
+<line x1='270' y1='290' x2='450' y2='235' class='edge'/>
+<line x1='450' y1='125' x2='610' y2='180' class='edge'/>
+<line x1='450' y1='235' x2='610' y2='180' class='edge'/>
+<circle cx='90' cy='120' r='27' class='nin'/><text x='90' y='125' class='nlab' text-anchor='middle'>x̃₁ 출석</text>
+<circle cx='90' cy='240' r='27' class='nin'/><text x='90' y='245' class='nlab' text-anchor='middle'>x̃₂ 공부</text>
+<circle cx='270' cy='70' r='27' class='nh'/><text x='270' y='75' class='nlab' text-anchor='middle'>h₁⁽¹⁾</text>
+<circle cx='270' cy='180' r='27' class='nh'/><text x='270' y='185' class='nlab' text-anchor='middle'>h₂⁽¹⁾</text>
+<circle cx='270' cy='290' r='27' class='nh'/><text x='270' y='295' class='nlab' text-anchor='middle'>h₃⁽¹⁾</text>
+<circle cx='450' cy='125' r='27' class='nh'/><text x='450' y='130' class='nlab' text-anchor='middle'>h₁⁽²⁾</text>
+<circle cx='450' cy='235' r='27' class='nh'/><text x='450' y='240' class='nlab' text-anchor='middle'>h₂⁽²⁾</text>
+<circle cx='610' cy='180' r='27' class='nout'/><text x='610' y='185' class='nlab' text-anchor='middle'>ô</text>
+<text x='90' y='340' class='ax' text-anchor='middle'>입력층</text><text x='90' y='358' class='tick' text-anchor='middle'>2개 (표준화)</text>
+<text x='270' y='340' class='ax' text-anchor='middle'>은닉층 1</text><text x='270' y='358' class='tick' text-anchor='middle'>3개 · ReLU</text>
+<text x='450' y='340' class='ax' text-anchor='middle'>은닉층 2</text><text x='450' y='358' class='tick' text-anchor='middle'>2개 · ReLU</text>
+<text x='610' y='340' class='ax' text-anchor='middle'>출력층</text><text x='610' y='358' class='tick' text-anchor='middle'>1개 · 항등</text>
+<text x='180' y='22' class='lbl' text-anchor='middle'>W⁽¹⁾ 2×3, b⁽¹⁾ 3</text>
+<text x='360' y='22' class='lbl' text-anchor='middle'>W⁽²⁾ 3×2, b⁽²⁾ 2</text>
+<text x='530' y='22' class='lbl' text-anchor='middle'>W⁽³⁾ 2×1, b⁽³⁾ 1</text>
+</svg>
+<figcaption>입력 2개 → 은닉층 1 (3개, ReLU) → 은닉층 2 (2개, ReLU) → 출력 1개 (활성화 없음). 회귀 문제이므로 출력층은 항등함수입니다.</figcaption>
+</figure>
+<p>행 벡터 표기로 층별 계산은 다음과 같습니다.</p>
+<div class="math">\[\begin{aligned}
+\mathbf z^{(1)}&=\tilde{\mathbf x}\,W^{(1)}+\mathbf b^{(1)}, & \mathbf a^{(1)}&=\operatorname{ReLU}(\mathbf z^{(1)})\\
+\mathbf z^{(2)}&=\mathbf a^{(1)}W^{(2)}+\mathbf b^{(2)}, & \mathbf a^{(2)}&=\operatorname{ReLU}(\mathbf z^{(2)})\\
+\hat o&=\mathbf a^{(2)}W^{(3)}+b^{(3)}
+\end{aligned}
+\qquad \operatorname{ReLU}(z)=\max(0,z),\quad \operatorname{ReLU}'(z)=\begin{cases}1&z>0\\0&z\le 0\end{cases}\]</div>
+<p>파라미터 수는 \((2\times3+3)+(3\times2+2)+(2\times1+1)=9+8+3=20\)개입니다. 학습 데이터가 10개뿐이라 파라미터가 데이터보다 많고, 이 점이 12장의 결과에 영향을 줍니다.</p>
+</section>
+
+<section id="s3">
+<h2><span class="n">3</span>데이터 표준화</h2>
+<p>출석일수(18~30)와 공부시간(4~14)은 범위가 다르고 점수(55~88)는 값이 큽니다. 그대로 넣으면 기울기 크기가 들쭉날쭉해 경사하강법이 불안정하므로, 학습 데이터의 평균과 표준편차로 입력과 출력을 모두 표준화합니다. 여기서 표준편차는 \(n\)으로 나눈 모표준편차입니다.</p>
+<div class="math">\[\tilde x_j=\frac{x_j-\bar x_j}{\sigma_{x_j}},\qquad \tilde y=\frac{y-\bar y}{\sigma_y}\]</div>
+<div class="math">\[\bar x_1=24.3,\;\sigma_{x_1}=3.4943,\qquad \bar x_2=8.6,\;\sigma_{x_2}=3.0397,\qquad \bar y=71.9,\;\sigma_y=10.7559\]</div>
+<div class="tbl"><table>
+<thead><tr><th>i</th><th>x₁</th><th>x₂</th><th>y</th><th>x̃₁</th><th>x̃₂</th><th>ỹ</th></tr></thead>
+<tbody><tr><td>1</td><td>18</td><td>6</td><td>55</td><td>-1.8029</td><td>-0.8553</td><td>-1.5712</td></tr>
+<tr><td>2</td><td>20</td><td>10</td><td>72</td><td>-1.2306</td><td>0.4606</td><td>0.0093</td></tr>
+<tr><td>3</td><td>22</td><td>4</td><td>60</td><td>-0.6582</td><td>-1.5133</td><td>-1.1064</td></tr>
+<tr><td>4</td><td>23</td><td>8</td><td>65</td><td>-0.3720</td><td>-0.1974</td><td>-0.6415</td></tr>
+<tr><td>5</td><td>24</td><td>12</td><td>82</td><td>-0.0859</td><td>1.1185</td><td>0.9390</td></tr>
+<tr><td>6</td><td>25</td><td>5</td><td>61</td><td>0.2003</td><td>-1.1843</td><td>-1.0134</td></tr>
+<tr><td>7</td><td>26</td><td>9</td><td>77</td><td>0.4865</td><td>0.1316</td><td>0.4742</td></tr>
+<tr><td>8</td><td>27</td><td>14</td><td>85</td><td>0.7727</td><td>1.7765</td><td>1.2179</td></tr>
+<tr><td>9</td><td>28</td><td>7</td><td>74</td><td>1.0589</td><td>-0.5264</td><td>0.1952</td></tr>
+<tr><td>10</td><td>30</td><td>11</td><td>88</td><td>1.6312</td><td>0.7895</td><td>1.4968</td></tr>
+</tbody></table></div>
+<p>테스트 데이터도 반드시 학습 데이터의 평균·표준편차로 변환합니다. 테스트 자체의 통계량을 쓰면 정보가 새어 들어갑니다.</p>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>x₁</th><th>x₂</th><th>x̃₁</th><th>x̃₂</th></tr></thead>
+<tbody><tr><td>T1</td><td>21</td><td>7</td><td>-0.9444</td><td>-0.5264</td></tr>
+<tr><td>T2</td><td>25</td><td>10</td><td>0.2003</td><td>0.4606</td></tr>
+<tr><td>T3</td><td>29</td><td>13</td><td>1.3451</td><td>1.4475</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s4">
+<h2><span class="n">4</span>가중치 초기화</h2>
+<p>가중치는 정규분포 난수(seed 13, ReLU에 맞춘 He 초기화 계열 분산)로 뽑고 손계산하기 쉽게 소수 둘째 자리로 반올림했습니다. 편향은 모두 0에서 시작합니다.</p>
+<div class="math">\[W^{(1)}=\begin{bmatrix}1.83&-3.08&0.96\\0.07&1.32&0.39\end{bmatrix},\quad W^{(2)}=\begin{bmatrix}1.49&0.03\\-0.42&0.47\\0.35&-0.29\end{bmatrix},\quad W^{(3)}=\begin{bmatrix}-0.25\\0.72\end{bmatrix}\]</div>
+<div class="math">\[\mathbf b^{(1)}=\begin{bmatrix}0.00&0.00&0.00\end{bmatrix},\quad \mathbf b^{(2)}=\begin{bmatrix}0.00&0.00\end{bmatrix},\quad b^{(3)}=\begin{bmatrix}0.00\end{bmatrix}\]</div>
+<div class="box key">
+<p><strong>초기값이 중요한 이유</strong> — 선형회귀는 해가 하나라 어디서 시작해도 같은 답에 도달하지만, MLP는 손실 곡면이 울퉁불퉁해 초기값마다 결과가 다릅니다. 같은 구조로 seed 0~19를 시험했을 때 3개(seed 0, 8, 17)는 모든 뉴런이 학습 데이터 전체에서 0만 출력하는 "죽은 ReLU" 상태에 빠져 손실이 1.0(평균만 예측하는 수준)에서 멈췄습니다.</p>
+</div>
+</section>
+
+<section id="s5">
+<h2><span class="n">5</span>순전파 — 학생 1 한 명</h2>
+<p>학생 1(출석 18일, 공부 6시간, 점수 55)을 초기 가중치로 통과시킵니다. 표준화된 입력은 \(\tilde{\mathbf x}=(-1.8029,\;-0.8553)\)입니다.</p>
+<h3>은닉층 1</h3>
+<div class="math">\[\begin{aligned}z^{(1)}_1&=(-1.8029)(1.83)+(-0.8553)(0.07)+0=-3.3593&\Rightarrow\;a^{(1)}_1&=\max(0,-3.3593)=0.0000\\z^{(1)}_2&=(-1.8029)(-3.08)+(-0.8553)(1.32)+0=4.4240&\Rightarrow\;a^{(1)}_2&=\max(0,4.4240)=4.4240\\z^{(1)}_3&=(-1.8029)(0.96)+(-0.8553)(0.39)+0=-2.0644&\Rightarrow\;a^{(1)}_3&=\max(0,-2.0644)=0.0000\end{aligned}\]</div>
+<h3>은닉층 2</h3>
+<div class="math">\[\begin{aligned}z^{(2)}_1&=(0.0000)(1.49)+(4.4240)(-0.42)+(0.0000)(0.35)+0=-1.8581&\Rightarrow\;a^{(2)}_1&=\max(0,-1.8581)=0.0000\\z^{(2)}_2&=(0.0000)(0.03)+(4.4240)(0.47)+(0.0000)(-0.29)+0=2.0793&\Rightarrow\;a^{(2)}_2&=\max(0,2.0793)=2.0793\end{aligned}\]</div>
+<p>음수가 된 \(z\)는 ReLU를 지나며 0이 됩니다. 0이 된 뉴런은 이 학생에 대해서는 신호를 전달하지 않고, 역전파 때도 기울기가 0이 되어 해당 경로의 가중치는 이 학생 때문에 바뀌지 않습니다.</p>
+<h3>출력층</h3>
+<div class="math">\[\hat o_1=(0.0000)(-0.25)+(2.0793)(0.72)+0=1.4971\]</div>
+<p>표준화 단위의 예측 \(1.4971\)을 점수로 바꾸면 \(1.4971\times10.7559+71.9=88.00\)점입니다. 실제 55점과 거리가 멀지만, 아직 학습 전이므로 당연합니다.</p>
+</section>
+
+<section id="s6">
+<h2><span class="n">6</span>손실 계산 — 10명 전체</h2>
+<p>같은 순전파를 10명 모두에 적용해 표준화 단위에서 MSE를 계산합니다.</p>
+<div class="tbl"><table>
+<thead><tr><th>i</th><th>ô</th><th>ỹ</th><th>ô − ỹ</th><th>(ô − ỹ)²</th></tr></thead>
+<tbody><tr><td>1</td><td>1.4971</td><td>-1.5712</td><td>3.0683</td><td>9.4146</td></tr>
+<tr><td>2</td><td>1.4883</td><td>0.0093</td><td>1.4790</td><td>2.1875</td></tr>
+<tr><td>3</td><td>0.0101</td><td>-1.1064</td><td>1.1164</td><td>1.2464</td></tr>
+<tr><td>4</td><td>0.2996</td><td>-0.6415</td><td>0.9411</td><td>0.8857</td></tr>
+<tr><td>5</td><td>0.5152</td><td>0.9390</td><td>-0.4238</td><td>0.1796</td></tr>
+<tr><td>6</td><td>-0.0995</td><td>-1.0134</td><td>0.9138</td><td>0.8351</td></tr>
+<tr><td>7</td><td>-0.3804</td><td>0.4742</td><td>-0.8546</td><td>0.7303</td></tr>
+<tr><td>8</td><td>-0.6986</td><td>1.2179</td><td>-1.9165</td><td>3.6730</td></tr>
+<tr><td>9</td><td>-0.7791</td><td>0.1952</td><td>-0.9743</td><td>0.9493</td></tr>
+<tr><td>10</td><td>-1.2965</td><td>1.4968</td><td>-2.7934</td><td>7.8030</td></tr>
+<tr class="sum"><td>합계</td><td></td><td></td><td></td><td>27.9045</td></tr>
+</tbody></table></div>
+<div class="math">\[\mathcal L^{(0)}=\frac1{10}\sum_{i=1}^{10}(\hat o_i-\tilde y_i)^2=\frac{ 27.9045 }{10}=2.7904\]</div>
+<p>참고로 모든 학생에게 평균(ỹ = 0)만 예측하면 손실은 정확히 1입니다. 초기 신경망은 그보다도 못한 상태입니다.</p>
+</section>
+
+<section id="s7">
+<h2><span class="n">7</span>역전파 — 연쇄법칙</h2>
+<p>역전파는 손실을 각 가중치로 미분한 값을 출력층부터 거꾸로 계산하는 과정입니다. 각 층에서 "뒤에서 넘어온 기울기 δ"만 알면 그 층의 가중치 기울기가 나옵니다.</p>
+<div class="math">\[\begin{aligned}
+\frac{\partial\mathcal L}{\partial\hat o_i}&=\frac{2}{n}(\hat o_i-\tilde y_i) &&\text{(출력 기울기)}\\
+\frac{\partial\mathcal L}{\partial W^{(3)}}&=\mathbf a^{(2)\top}\frac{\partial\mathcal L}{\partial\hat o}, &
+\boldsymbol\delta^{(2)}&=\Bigl(\frac{\partial\mathcal L}{\partial\hat o}W^{(3)\top}\Bigr)\odot\operatorname{ReLU}'(\mathbf z^{(2)})\\
+\frac{\partial\mathcal L}{\partial W^{(2)}}&=\mathbf a^{(1)\top}\boldsymbol\delta^{(2)}, &
+\boldsymbol\delta^{(1)}&=\bigl(\boldsymbol\delta^{(2)}W^{(2)\top}\bigr)\odot\operatorname{ReLU}'(\mathbf z^{(1)})\\
+\frac{\partial\mathcal L}{\partial W^{(1)}}&=\tilde{\mathbf x}^{\top}\boldsymbol\delta^{(1)}, &
+\frac{\partial\mathcal L}{\partial\mathbf b^{(l)}}&=\textstyle\sum_i\boldsymbol\delta^{(l)}_i
+\end{aligned}\]</div>
+<p>선형회귀의 정규방정식도 사실 \(\partial\mathcal L/\partial b_j=0\)이라는 같은 미분에서 나왔습니다. 차이는 ReLU 미분이 끼어들어 식을 0으로 놓고 풀 수 없다는 점뿐입니다.</p>
+
+<h3>학생 1의 기여분</h3>
+<div class="math">\[\frac{\partial\mathcal L}{\partial\hat o_1}=\frac{2}{10}\times(3.0683)=0.6137\]</div>
+<p>출력층 가중치 기울기는 은닉층 2 출력에 이 값을 곱합니다.</p>
+<div class="math">\[\mathbf a^{(2)}_1=\begin{bmatrix}0.0000&2.0793\end{bmatrix}\;\Rightarrow\;\frac{\partial\mathcal L_1}{\partial W^{(3)}}=\mathbf a^{(2)\top}_1\times0.6137=\begin{bmatrix}0.0000\\1.2760\end{bmatrix}\]</div>
+<p>은닉층 2로 기울기를 보낸 뒤, ReLU 미분(켜진 뉴런은 1, 꺼진 뉴런은 0)으로 거릅니다.</p>
+<div class="math">\[0.6137\cdot W^{(3)\top}=\begin{bmatrix}-0.1534&0.4418\end{bmatrix},\qquad \operatorname{ReLU}'(\mathbf z^{(2)}_1)=\begin{bmatrix}0&1\end{bmatrix}\;\Rightarrow\;\boldsymbol\delta^{(2)}_1=\begin{bmatrix}-0.0000&0.4418\end{bmatrix}\]</div>
+<div class="math">\[\mathbf a^{(1)}_1=\begin{bmatrix}0.0000&4.4240&0.0000\end{bmatrix}\;\Rightarrow\;\frac{\partial\mathcal L_1}{\partial W^{(2)}}=\mathbf a^{(1)\top}_1\boldsymbol\delta^{(2)}_1=\begin{bmatrix}0.0000&0.0000\\0.0000&1.9547\\0.0000&0.0000\end{bmatrix}\]</div>
+<p>같은 방법으로 은닉층 1까지 내려갑니다.</p>
+<div class="math">\[\boldsymbol\delta^{(2)}_1W^{(2)\top}=\begin{bmatrix}0.0133&0.2077&-0.1281\end{bmatrix},\qquad \operatorname{ReLU}'(\mathbf z^{(1)}_1)=\begin{bmatrix}0&1&0\end{bmatrix}\;\Rightarrow\;\boldsymbol\delta^{(1)}_1=\begin{bmatrix}0.0000&0.2077&-0.0000\end{bmatrix}\]</div>
+<div class="math">\[\frac{\partial\mathcal L_1}{\partial W^{(1)}}=\tilde{\mathbf x}^{\top}_1\boldsymbol\delta^{(1)}_1=\begin{bmatrix}0.0000&-0.3744&0.0000\\0.0000&-0.1776&0.0000\end{bmatrix}\]</div>
+
+<h3>10명 전체의 기울기 (합계)</h3>
+<p>전체 배치 경사하강법이므로 10명의 기여분을 모두 더한 값을 씁니다.</p>
+<div class="math">\[\nabla W^{(1)}=0.4648,\quad \nabla\mathbf b^{(1)}=1.4306\]</div>
+<div class="math">\[\nabla W^{(2)}=0.6902,\quad \nabla\mathbf b^{(2)}=2.4422\]</div>
+<div class="math">\[\nabla W^{(3)}=\begin{bmatrix}-4.7585\\1.9098\end{bmatrix},\quad \nabla b^{(3)}=\begin{bmatrix}0.1112\end{bmatrix}\]</div>
+</section>
+
+<section id="s8">
+<h2><span class="n">8</span>가중치 갱신 — 1스텝</h2>
+<p>모든 파라미터를 기울기의 반대 방향으로 학습률 \(\eta=0.05\)만큼 이동합니다.</p>
+<div class="math">\[\theta\leftarrow\theta-\eta\,\nabla_\theta\mathcal L\]</div>
+<div class="math">\[W^{(3)}:\;\begin{bmatrix}-0.25\\0.72\end{bmatrix}-0.05\times\begin{bmatrix}-4.7585\\1.9098\end{bmatrix}=\begin{bmatrix}-0.0121\\0.6245\end{bmatrix}\]</div>
+<div class="math">\[b^{(3)}:\;\begin{bmatrix}0\end{bmatrix}-0.05\times\begin{bmatrix}0.1112\end{bmatrix}=\begin{bmatrix}-0.0056\end{bmatrix}\]</div>
+<p>나머지 파라미터도 같은 방식으로 갱신한 결과입니다.</p>
+<div class="math">\[W^{(1)}=\begin{bmatrix}1.8028&-3.0516&0.9535\\0.0468&1.3345&0.3845\end{bmatrix},\quad \mathbf b^{(1)}=\begin{bmatrix}-0.0212&-0.0209&-0.0066\end{bmatrix}\]</div>
+<div class="math">\[W^{(2)}=\begin{bmatrix}1.4555&0.0281\\-0.4200&0.3245\\0.3270&-0.2889\end{bmatrix},\quad \mathbf b^{(2)}=\begin{bmatrix}-0.0141&-0.0511\end{bmatrix}\]</div>
+<p>갱신된 가중치로 다시 순전파하면 손실이 줄어듭니다.</p>
+<div class="math">\[\mathcal L^{(0)}=2.7904\;\longrightarrow\;\mathcal L^{(1)}=1.4127\]</div>
+</section>
+
+<section id="s9">
+<h2><span class="n">9</span>반복 학습</h2>
+<p>5~8장(순전파 → 손실 → 역전파 → 갱신)을 2000번 반복합니다.</p>
+<div class="tbl"><table>
+<thead><tr><th>에폭</th><th>0</th><th>1</th><th>10</th><th>100</th><th>500</th><th>1000</th><th>1999</th></tr></thead>
+<tbody><tr><td>손실</td><td>2.7904</td><td>1.4127</td><td>0.5628</td><td>0.3106</td><td>0.0633</td><td>0.0343</td><td>0.0259</td></tr></tbody>
+</table></div>
+<figure>
+<svg viewBox='0 0 600 340' role='img' aria-label='학습 손실 곡선'>
+<line x1='64' y1='292.0' x2='580' y2='292.0' class='grid'/><text x='56' y='296.0' class='tick' text-anchor='end'>0.01</text>
+<line x1='64' y1='239.6' x2='580' y2='239.6' class='grid'/><text x='56' y='243.6' class='tick' text-anchor='end'>0.03</text>
+<line x1='64' y1='182.2' x2='580' y2='182.2' class='grid'/><text x='56' y='186.2' class='tick' text-anchor='end'>0.1</text>
+<line x1='64' y1='129.8' x2='580' y2='129.8' class='grid'/><text x='56' y='133.8' class='tick' text-anchor='end'>0.3</text>
+<line x1='64' y1='72.4' x2='580' y2='72.4' class='grid'/><text x='56' y='76.4' class='tick' text-anchor='end'>1</text>
+<line x1='64' y1='20.0' x2='580' y2='20.0' class='grid'/><text x='56' y='24.0' class='tick' text-anchor='end'>3</text>
+<text x='64.0' y='310' class='tick' text-anchor='middle'>0</text>
+<text x='193.1' y='310' class='tick' text-anchor='middle'>500</text>
+<text x='322.1' y='310' class='tick' text-anchor='middle'>1000</text>
+<text x='451.2' y='310' class='tick' text-anchor='middle'>1500</text>
+<text x='580.0' y='310' class='tick' text-anchor='middle'>2000</text>
+<line x1='64' y1='207.5' x2='580' y2='207.5' class='ideal'/>
+<text x='576' y='200.5' class='lbl' text-anchor='end'>선형회귀(OLS)의 학습 MSE 0.0588</text>
+<polyline points='64.0,23.5 64.3,55.9 64.5,71.6 64.8,80.7 65.0,86.5 65.3,90.5 65.5,94.1 65.8,96.7 66.1,97.8 66.3,98.9 66.6,99.8 66.8,100.7 67.1,101.5 67.4,102.3 67.6,103.0 67.9,103.6 68.1,104.3 68.4,104.8 68.6,105.4 68.9,105.9 69.2,106.3 69.4,106.7 69.7,107.0 69.9,107.2 70.2,107.5 70.5,107.7 70.7,107.8 71.0,108.0 71.2,108.2 71.5,108.3 71.7,108.5 72.0,108.6 72.3,108.7 72.5,108.8 72.8,109.0 73.0,109.1 73.3,109.2 73.6,109.2 73.8,109.3 74.1,109.4 74.3,109.5 74.6,109.6 74.8,109.6 75.1,109.7 75.4,109.8 75.6,109.8 75.9,109.9 76.1,110.0 76.4,110.0 76.6,110.1 76.9,110.1 79.5,110.6 82.1,110.9 84.7,117.6 87.2,123.4 89.8,128.2 92.4,132.1 95.0,135.5 97.6,138.3 100.1,140.3 102.7,141.8 105.3,143.0 107.9,144.2 110.5,145.2 113.0,146.1 115.6,147.0 118.2,147.8 120.8,148.5 123.4,149.2 126.0,149.8 128.5,150.7 131.1,151.5 133.7,152.3 136.3,153.1 138.9,153.8 141.4,154.5 144.0,155.1 146.6,155.7 149.2,156.3 151.8,156.7 154.3,159.8 156.9,163.8 159.5,167.5 162.1,171.1 164.7,174.5 167.3,177.8 169.8,181.0 172.4,184.0 175.0,186.9 177.6,189.6 180.2,192.8 182.7,195.7 185.3,198.4 187.9,200.8 190.5,202.6 193.1,204.0 195.6,205.5 198.2,206.7 200.8,207.6 203.4,208.5 206.0,209.4 208.6,210.1 211.1,210.9 213.7,212.4 216.3,214.3 218.9,215.4 221.5,216.1 224.0,216.8 226.6,217.4 229.2,218.0 231.8,218.3 234.4,218.7 236.9,219.5 239.5,220.2 242.1,220.7 244.7,221.4 247.3,221.9 249.9,222.1 252.4,222.4 255.0,223.4 257.6,223.5 260.2,224.3 262.8,224.6 265.3,225.2 267.9,225.3 270.5,225.4 273.1,226.1 275.7,226.4 278.2,227.3 280.8,227.5 283.4,227.9 286.0,227.6 288.6,228.3 291.2,228.5 293.7,229.7 296.3,230.0 298.9,230.3 301.5,230.5 304.1,230.8 306.6,231.1 309.2,231.5 311.8,231.2 314.4,232.1 317.0,232.8 319.5,233.2 322.1,233.3 324.7,233.5 327.3,233.6 329.9,234.3 332.5,233.6 335.0,234.3 337.6,234.1 340.2,235.5 342.8,235.4 345.4,235.3 347.9,236.3 350.5,236.1 353.1,236.5 355.7,236.3 358.3,237.2 360.8,237.7 363.4,237.5 366.0,237.6 368.6,237.5 371.2,238.2 373.8,238.4 376.3,238.7 378.9,238.4 381.5,238.8 384.1,239.6 386.7,239.4 389.2,239.4 391.8,240.1 394.4,240.2 397.0,239.9 399.6,240.6 402.1,240.2 404.7,240.8 407.3,241.1 409.9,241.0 412.5,241.1 415.1,241.0 417.6,241.8 420.2,241.5 422.8,241.8 425.4,241.1 428.0,241.9 430.5,241.9 433.1,242.4 435.7,242.6 438.3,242.5 440.9,242.6 443.4,243.2 446.0,242.8 448.6,242.9 451.2,243.2 453.8,243.4 456.4,243.5 458.9,243.2 461.5,243.8 464.1,244.0 466.7,243.6 469.3,244.0 471.8,244.2 474.4,244.4 477.0,244.3 479.6,244.4 482.2,244.4 484.8,244.6 487.3,244.6 489.9,244.9 492.5,244.9 495.1,245.0 497.7,245.2 500.2,245.2 502.8,244.8 505.4,245.3 508.0,245.4 510.6,245.3 513.1,245.4 515.7,245.4 518.3,245.5 520.9,245.7 523.5,245.6 526.1,245.3 528.6,245.9 531.2,245.8 533.8,245.8 536.4,246.0 539.0,245.8 541.5,246.1 544.1,246.0 546.7,246.2 549.3,246.1 551.9,246.3 554.4,246.0 557.0,246.3 559.6,246.4 562.2,246.3 564.8,246.4 567.4,246.5 569.9,246.5 572.5,246.3 575.1,246.5 577.7,246.6 580.0,246.6' class='curve'/>
+<text x='576.0' y='264.6' class='lbl' text-anchor='end'>MLP 최종 0.0259</text>
+<text x='322.0' y='332' class='ax' text-anchor='middle'>에폭 (전체 배치 1회 = 1스텝)</text>
+<text x='16' y='156.0' class='ax' text-anchor='middle' transform='rotate(-90 16 156.0)'>손실 MSE (표준화 단위, 로그축)</text></svg>
+<figcaption>점선은 다중회귀(OLS)가 도달한 학습 MSE입니다. MLP는 528 에폭에서 이 선 아래로 내려간 뒤 더 낮은 학습 오차까지 내려갑니다. 파라미터가 많아 학습 데이터에 더 유연하게 맞출 수 있기 때문입니다.</figcaption>
+</figure>
+</section>
+
+<section id="s10">
+<h2><span class="n">10</span>학습 결과와 적합도</h2>
+<h3>학습된 가중치</h3>
+<div class="math">\[W^{(1)}=\begin{bmatrix}0.7211&-2.9512&1.1437\\0.7161&1.4277&0.2204\end{bmatrix},\quad \mathbf b^{(1)}=\begin{bmatrix}1.5956&-0.2557&0.2524\end{bmatrix}\]</div>
+<div class="math">\[W^{(2)}=\begin{bmatrix}1.4936&0.4648\\0.1301&0.1615\\0.3985&-0.6300\end{bmatrix},\quad \mathbf b^{(2)}=\begin{bmatrix}-0.5022&-0.6340\end{bmatrix}\]</div>
+<div class="math">\[W^{(3)}=\begin{bmatrix}0.5217\\1.0864\end{bmatrix},\quad b^{(3)}=\begin{bmatrix}-1.3393\end{bmatrix}\]</div>
+<p>다중회귀처럼 "출석 하루당 몇 점"이라는 계수 해석은 할 수 없습니다. 입력의 효과가 ReLU가 켜지고 꺼지는 구간에 따라 달라지기 때문입니다.</p>
+<h3>학습 데이터 예측</h3>
+<div class="tbl"><table>
+<thead><tr><th>i</th><th>y</th><th>ô</th><th>ŷ = ô·σ_y + ȳ</th><th>e = y − ŷ</th><th>e²</th><th>OLS ŷ</th></tr></thead>
+<tbody><tr><td>1</td><td>55</td><td>-1.3393</td><td>57.4947</td><td>-2.4947</td><td>6.2235</td><td>56.5372</td></tr>
+<tr><td>2</td><td>72</td><td>0.0244</td><td>72.1623</td><td>-0.1623</td><td>0.0263</td><td>69.1673</td></tr>
+<tr><td>3</td><td>60</td><td>-1.3393</td><td>57.4947</td><td>2.5053</td><td>6.2766</td><td>57.3755</td></tr>
+<tr><td>4</td><td>65</td><td>-0.6308</td><td>65.1157</td><td>-0.1157</td><td>0.0134</td><td>68.5748</td></tr>
+<tr><td>5</td><td>82</td><td>0.9049</td><td>81.6330</td><td>0.3670</td><td>0.1347</td><td>79.7742</td></tr>
+<tr><td>6</td><td>61</td><td>-0.8605</td><td>62.6449</td><td>-1.6449</td><td>2.7056</td><td>64.1096</td></tr>
+<tr><td>7</td><td>77</td><td>0.1629</td><td>73.6517</td><td>3.3483</td><td>11.2112</td><td>75.3090</td></tr>
+<tr><td>8</td><td>85</td><td>1.3848</td><td>86.7949</td><td>-1.7949</td><td>3.2218</td><td>88.9505</td></tr>
+<tr><td>9</td><td>74</td><td>0.2232</td><td>74.3012</td><td>-0.3012</td><td>0.0907</td><td>73.2859</td></tr>
+<tr><td>10</td><td>88</td><td>1.4754</td><td>87.7692</td><td>0.2308</td><td>0.0533</td><td>85.9159</td></tr>
+</tbody></table></div>
+<div class="math">\[\text{SSE}=29.9572,\qquad R^2=1-\frac{\text{SSE}}{\text{SST}}=1-\frac{ 29.9572 }{ 1156.9 }=0.9741,\qquad \text{RMSE}_{train}=\sqrt{\frac{\text{SSE}}{10}}=1.7308\]</div>
+<p>다중회귀는 SSE 67.9984, R² 0.9412, 학습 RMSE 2.6077였습니다. 학습 데이터만 보면 MLP가 훨씬 잘 맞습니다.</p>
+</section>
+
+<section id="s11">
+<h2><span class="n">11</span>테스트 3개 예측</h2>
+<p>학습된 가중치로 테스트 데이터를 순전파하고, 마지막에 점수 단위로 되돌립니다.</p>
+
+<div class='case'><h4>테스트 T1 — 출석 21일, 공부 7시간, 실제 66점</h4><div class='math'>\[\tilde{\mathbf x}=\begin{bmatrix}-0.9444&-0.5264\end{bmatrix}\]</div><div class='math'>\[\mathbf z^{(1)}=\tilde{\mathbf x}W^{(1)}+\mathbf b^{(1)}=\begin{bmatrix}0.5377&1.7799&-0.9437\end{bmatrix}\;\Rightarrow\;\mathbf a^{(1)}=\begin{bmatrix}0.5377&1.7799&0.0000\end{bmatrix}\]</div><div class='math'>\[\mathbf z^{(2)}=\mathbf a^{(1)}W^{(2)}+\mathbf b^{(2)}=\begin{bmatrix}0.5326&-0.0967\end{bmatrix}\;\Rightarrow\;\mathbf a^{(2)}=\begin{bmatrix}0.5326&0.0000\end{bmatrix}\]</div><div class='math'>\[\hat o=\mathbf a^{(2)}W^{(3)}+b^{(3)}=-1.0615\]</div><div class='math'>\[\hat y=\hat o\cdot\sigma_y+\bar y=-1.0615\times10.7559+71.9=60.4830,\qquad e=66-60.4830=5.5170\]</div></div>
+<div class='case'><h4>테스트 T2 — 출석 25일, 공부 10시간, 실제 73점</h4><div class='math'>\[\tilde{\mathbf x}=\begin{bmatrix}0.2003&0.4606\end{bmatrix}\]</div><div class='math'>\[\mathbf z^{(1)}=\tilde{\mathbf x}W^{(1)}+\mathbf b^{(1)}=\begin{bmatrix}2.0699&-0.1894&0.5830\end{bmatrix}\;\Rightarrow\;\mathbf a^{(1)}=\begin{bmatrix}2.0699&0.0000&0.5830\end{bmatrix}\]</div><div class='math'>\[\mathbf z^{(2)}=\mathbf a^{(1)}W^{(2)}+\mathbf b^{(2)}=\begin{bmatrix}2.8217&-0.0393\end{bmatrix}\;\Rightarrow\;\mathbf a^{(2)}=\begin{bmatrix}2.8217&0.0000\end{bmatrix}\]</div><div class='math'>\[\hat o=\mathbf a^{(2)}W^{(3)}+b^{(3)}=0.1327\]</div><div class='math'>\[\hat y=\hat o\cdot\sigma_y+\bar y=0.1327\times10.7559+71.9=73.3269,\qquad e=73-73.3269=-0.3269\]</div></div>
+<div class='case'><h4>테스트 T3 — 출석 29일, 공부 13시간, 실제 92점</h4><div class='math'>\[\tilde{\mathbf x}=\begin{bmatrix}1.3451&1.4475\end{bmatrix}\]</div><div class='math'>\[\mathbf z^{(1)}=\tilde{\mathbf x}W^{(1)}+\mathbf b^{(1)}=\begin{bmatrix}3.6021&-2.1588&2.1098\end{bmatrix}\;\Rightarrow\;\mathbf a^{(1)}=\begin{bmatrix}3.6021&0.0000&2.1098\end{bmatrix}\]</div><div class='math'>\[\mathbf z^{(2)}=\mathbf a^{(1)}W^{(2)}+\mathbf b^{(2)}=\begin{bmatrix}5.7185&-0.2890\end{bmatrix}\;\Rightarrow\;\mathbf a^{(2)}=\begin{bmatrix}5.7185&0.0000\end{bmatrix}\]</div><div class='math'>\[\hat o=\mathbf a^{(2)}W^{(3)}+b^{(3)}=1.6438\]</div><div class='math'>\[\hat y=\hat o\cdot\sigma_y+\bar y=1.6438\times10.7559+71.9=89.5809,\qquad e=92-89.5809=2.4191\]</div></div>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>실제 y</th><th>예측 ŷ</th><th>오차 e</th><th>|e|</th><th>e²</th><th>|e|/y</th></tr></thead>
+<tbody><tr><td>T1</td><td>66</td><td>60.4830</td><td>5.5170</td><td>5.5170</td><td>30.4373</td><td>8.36%</td></tr>
+<tr><td>T2</td><td>73</td><td>73.3269</td><td>-0.3269</td><td>0.3269</td><td>0.1069</td><td>0.45%</td></tr>
+<tr><td>T3</td><td>92</td><td>89.5809</td><td>2.4191</td><td>2.4191</td><td>5.8522</td><td>2.63%</td></tr>
+</tbody></table></div>
+<figure>
+<svg viewBox='0 0 560 420' role='img' aria-label='MLP 실제 점수와 예측 점수 비교'>
+<line x1='60.0' y1='20' x2='60.0' y2='370' class='grid'/><line x1='60' y1='370.0' x2='540' y2='370.0' class='grid'/>
+<text x='60.0' y='388' class='tick' text-anchor='middle'>50</text><text x='52' y='374.0' class='tick' text-anchor='end'>50</text>
+<line x1='113.3' y1='20' x2='113.3' y2='370' class='grid'/><line x1='60' y1='331.1' x2='540' y2='331.1' class='grid'/>
+<text x='113.3' y='388' class='tick' text-anchor='middle'>55</text><text x='52' y='335.1' class='tick' text-anchor='end'>55</text>
+<line x1='166.7' y1='20' x2='166.7' y2='370' class='grid'/><line x1='60' y1='292.2' x2='540' y2='292.2' class='grid'/>
+<text x='166.7' y='388' class='tick' text-anchor='middle'>60</text><text x='52' y='296.2' class='tick' text-anchor='end'>60</text>
+<line x1='220.0' y1='20' x2='220.0' y2='370' class='grid'/><line x1='60' y1='253.3' x2='540' y2='253.3' class='grid'/>
+<text x='220.0' y='388' class='tick' text-anchor='middle'>65</text><text x='52' y='257.3' class='tick' text-anchor='end'>65</text>
+<line x1='273.3' y1='20' x2='273.3' y2='370' class='grid'/><line x1='60' y1='214.4' x2='540' y2='214.4' class='grid'/>
+<text x='273.3' y='388' class='tick' text-anchor='middle'>70</text><text x='52' y='218.4' class='tick' text-anchor='end'>70</text>
+<line x1='326.7' y1='20' x2='326.7' y2='370' class='grid'/><line x1='60' y1='175.6' x2='540' y2='175.6' class='grid'/>
+<text x='326.7' y='388' class='tick' text-anchor='middle'>75</text><text x='52' y='179.6' class='tick' text-anchor='end'>75</text>
+<line x1='380.0' y1='20' x2='380.0' y2='370' class='grid'/><line x1='60' y1='136.7' x2='540' y2='136.7' class='grid'/>
+<text x='380.0' y='388' class='tick' text-anchor='middle'>80</text><text x='52' y='140.7' class='tick' text-anchor='end'>80</text>
+<line x1='433.3' y1='20' x2='433.3' y2='370' class='grid'/><line x1='60' y1='97.8' x2='540' y2='97.8' class='grid'/>
+<text x='433.3' y='388' class='tick' text-anchor='middle'>85</text><text x='52' y='101.8' class='tick' text-anchor='end'>85</text>
+<line x1='486.7' y1='20' x2='486.7' y2='370' class='grid'/><line x1='60' y1='58.9' x2='540' y2='58.9' class='grid'/>
+<text x='486.7' y='388' class='tick' text-anchor='middle'>90</text><text x='52' y='62.9' class='tick' text-anchor='end'>90</text>
+<line x1='540.0' y1='20' x2='540.0' y2='370' class='grid'/><line x1='60' y1='20.0' x2='540' y2='20.0' class='grid'/>
+<text x='540.0' y='388' class='tick' text-anchor='middle'>95</text><text x='52' y='24.0' class='tick' text-anchor='end'>95</text>
+<line x1='60.0' y1='370.0' x2='540.0' y2='20.0' class='ideal'/>
+<line x1='113.3' y1='331.1' x2='113.3' y2='311.7' class='res'/><circle cx='113.3' cy='311.7' r='5.5' class='tr'/>
+<line x1='294.7' y1='198.9' x2='294.7' y2='197.6' class='res'/><circle cx='294.7' cy='197.6' r='5.5' class='tr'/>
+<line x1='166.7' y1='292.2' x2='166.7' y2='311.7' class='res'/><circle cx='166.7' cy='311.7' r='5.5' class='tr'/>
+<line x1='220.0' y1='253.3' x2='220.0' y2='252.4' class='res'/><circle cx='220.0' cy='252.4' r='5.5' class='tr'/>
+<line x1='401.3' y1='121.1' x2='401.3' y2='124.0' class='res'/><circle cx='401.3' cy='124.0' r='5.5' class='tr'/>
+<line x1='177.3' y1='284.4' x2='177.3' y2='271.7' class='res'/><circle cx='177.3' cy='271.7' r='5.5' class='tr'/>
+<line x1='348.0' y1='160.0' x2='348.0' y2='186.0' class='res'/><circle cx='348.0' cy='186.0' r='5.5' class='tr'/>
+<line x1='433.3' y1='97.8' x2='433.3' y2='83.8' class='res'/><circle cx='433.3' cy='83.8' r='5.5' class='tr'/>
+<line x1='316.0' y1='183.3' x2='316.0' y2='181.0' class='res'/><circle cx='316.0' cy='181.0' r='5.5' class='tr'/>
+<line x1='465.3' y1='74.4' x2='465.3' y2='76.2' class='res'/><circle cx='465.3' cy='76.2' r='5.5' class='tr'/>
+<line x1='230.7' y1='245.6' x2='230.7' y2='288.5' class='res te'/><rect x='224.7' y='282.5' width='12' height='12' transform='rotate(45 230.7 288.5)' class='ts'/><text x='240.7' y='292.5' class='lbl'>T1</text>
+<line x1='305.3' y1='191.1' x2='305.3' y2='188.6' class='res te'/><rect x='299.3' y='182.6' width='12' height='12' transform='rotate(45 305.3 188.6)' class='ts'/><text x='315.3' y='192.6' class='lbl'>T2</text>
+<line x1='508.0' y1='43.3' x2='508.0' y2='62.1' class='res te'/><rect x='502.0' y='56.1' width='12' height='12' transform='rotate(45 508.0 62.1)' class='ts'/><text x='518.0' y='66.1' class='lbl'>T3</text>
+<text x='300.0' y='410' class='ax' text-anchor='middle'>실제 점수 y</text><text x='16' y='195.0' class='ax' text-anchor='middle' transform='rotate(-90 16 195.0)'>MLP 예측 ŷ</text>
+<circle cx='80' cy='34' r='5.5' class='tr'/><text x='92' y='38' class='lbl'>학습 데이터 10개</text><rect x='74' y='50' width='12' height='12' transform='rotate(45 80 56)' class='ts'/><text x='92' y='60' class='lbl'>테스트 3개</text></svg>
+<figcaption>학습 데이터(●)는 대각선에 매우 가깝지만, 테스트 T1(◆)은 5점 넘게 벗어났습니다.</figcaption>
+</figure>
+</section>
+
+<section id="s12">
+<h2><span class="n">12</span>평가와 선형회귀 비교</h2>
+<h3>MLP 테스트 지표</h3>
+<div class="math">\[\text{MAE}=\frac{ 5.5170+0.3269+2.4191 }{3}=2.7543,\qquad \text{MSE}=\frac{ 30.4373+0.1069+5.8522 }{3}=12.1321,\qquad \text{RMSE}=\sqrt{ 12.1321 }=3.4831\]</div>
+<div class="math">\[\text{MAPE}=\frac{ 8.36+0.45+2.63 }{3}=3.81\%,\qquad R^2_{test}=1-\frac{ 36.3964 }{ 362.0 }=0.8995\]</div>
+<h3>두 모형 비교</h3>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>실제 y</th><th>OLS ŷ</th><th>OLS 오차</th><th>MLP ŷ</th><th>MLP 오차</th></tr></thead>
+<tbody><tr><td>T1</td><td>66</td><td>63.27</td><td>2.73</td><td>60.48</td><td>5.52</td></tr>
+<tr><td>T2</td><td>73</td><td>76.32</td><td>-3.32</td><td>73.33</td><td>-0.33</td></tr>
+<tr><td>T3</td><td>92</td><td>89.37</td><td>2.63</td><td>89.58</td><td>2.42</td></tr>
+</tbody></table></div>
+<div class="tbl"><table>
+<thead><tr><th>지표</th><th>다중회귀 (OLS)</th><th>MLP 2-3-2-1</th><th>더 나은 쪽</th></tr></thead>
+<tbody>
+<tr><td>학습 R²</td><td>0.9412</td><td>0.9741</td><td>MLP</td></tr>
+<tr><td>테스트 MAE</td><td>2.8932</td><td>2.7543</td><td>MLP</td></tr>
+<tr><td>테스트 RMSE</td><td>2.9092</td><td>3.4831</td><td>OLS</td></tr>
+<tr><td>테스트 MAPE</td><td>3.85%</td><td>3.81%</td><td>MLP (근소)</td></tr>
+<tr><td>테스트 R²</td><td>0.9299</td><td>0.8995</td><td>OLS</td></tr>
+</tbody></table></div>
+<div class="box test">
+<p><strong>어떻게 읽어야 할까</strong> — MLP는 T2, T3를 더 정확히 맞혀 MAE는 더 작지만, T1에서 5.5점을 크게 틀려 제곱으로 큰 오차를 벌주는 RMSE와 R²에서는 선형회귀에 집니다. 학습 R²는 MLP가 높은데 테스트 RMSE는 오히려 나쁜 것은 과적합의 전형적인 신호입니다. 파라미터 20개로 데이터 10개를 학습했기 때문입니다.</p>
+<p>이 데이터는 원래 거의 선형 관계라 3개 파라미터짜리 평면으로 충분합니다. 데이터가 적고 관계가 단순할 때는 선형회귀가, 데이터가 많고 비선형 관계가 뚜렷할 때는 MLP가 유리합니다. MLP를 써야 한다면 은닉 뉴런 수를 줄이거나 L2 정규화(weight decay), 조기 종료(early stopping)로 과적합을 억제합니다.</p>
+</div>
+</section>
+
+<section id="s13">
+<h2><span class="n">13</span>Python 검증</h2>
+<p>numpy만으로 순전파·역전파를 직접 구현한 코드입니다. 그대로 실행하면 이 노트의 수치가 재현됩니다.</p>
+<pre class="code">import numpy as np
+
+# 학습 데이터 10개: [출석일수, 공부시간], 점수
+X = np.array([[18, 6], [20, 10], [22, 4], [23, 8], [24, 12],
+              [25, 5], [26, 9], [27, 14], [28, 7], [30, 11]], dtype=float)
+y = np.array([55, 72, 60, 65, 82, 61, 77, 85, 74, 88], dtype=float)
+X_test = np.array([[21, 7], [25, 10], [29, 13]], dtype=float)
+y_test = np.array([66, 73, 92], dtype=float)
+
+# 1) 표준화 (학습 데이터의 평균·표준편차만 사용)
+mu, sd = X.mean(0), X.std(0)
+ym, ys = y.mean(), y.std()
+Z, yz = (X - mu) / sd, (y - ym) / ys
+
+# 2) 가중치 초기화: 2-3-2-1 구조, 소수 둘째 자리로 반올림해 손계산하기 쉽게
+rng = np.random.default_rng(13)
+W1 = np.round(rng.normal(0, 1, (2, 3)), 2); b1 = np.zeros(3)
+W2 = np.round(rng.normal(0, np.sqrt(2 / 3), (3, 2)), 2); b2 = np.zeros(2)
+W3 = np.round(rng.normal(0, 1, (2, 1)), 2); b3 = np.zeros(1)
+
+def forward(A):
+    z1 = A @ W1 + b1; a1 = np.maximum(z1, 0)      # 은닉층 1 (ReLU)
+    z2 = a1 @ W2 + b2; a2 = np.maximum(z2, 0)     # 은닉층 2 (ReLU)
+    out = (a2 @ W3 + b3).ravel()                   # 출력층 (항등)
+    return z1, a1, z2, a2, out
+
+# 3) 전체 배치 경사하강법
+lr, epochs, n = 0.05, 2000, len(y)
+for epoch in range(epochs):
+    z1, a1, z2, a2, out = forward(Z)
+    loss = np.mean((out - yz) ** 2)
+    if epoch in (0, 1, 10, 100, 500, 1000, epochs - 1):
+        print(f"epoch {epoch:4d}  loss {loss:.4f}")
+    g = (2 / n * (out - yz))[:, None]              # dL/d(out)
+    gW3 = a2.T @ g;  gb3 = g.sum(0)
+    d2 = (g @ W3.T) * (z2 > 0)                     # ReLU 미분 = 1(z>0)
+    gW2 = a1.T @ d2; gb2 = d2.sum(0)
+    d1 = (d2 @ W2.T) * (z1 > 0)
+    gW1 = Z.T @ d1;  gb1 = d1.sum(0)
+    W3 -= lr * gW3; b3 -= lr * gb3
+    W2 -= lr * gW2; b2 -= lr * gb2
+    W1 -= lr * gW1; b1 -= lr * gb1
+
+# 4) 원래 점수 단위로 되돌려 평가
+def predict(A):
+    return forward((A - mu) / sd)[4] * ys + ym
+
+yhat_tr = predict(X)
+print("학습 R^2   :", round(1 - np.sum((y - yhat_tr) ** 2) / np.sum((y - ym) ** 2), 4))
+y_pred = predict(X_test)
+err = y_test - y_pred
+print("테스트 예측:", np.round(y_pred, 4))
+print("오차       :", np.round(err, 4))
+print("MAE  :", round(np.mean(np.abs(err)), 4))
+print("MSE  :", round(np.mean(err ** 2), 4))
+print("RMSE :", round(np.sqrt(np.mean(err ** 2)), 4))
+print("MAPE :", round(np.mean(np.abs(err) / y_test) * 100, 4), "%")
+print("테스트 R^2 :", round(1 - np.sum(err ** 2) / np.sum((y_test - y_test.mean()) ** 2), 4))
+</pre>
+<p class="cap">실행 결과</p>
+<pre class="out">epoch    0  loss 2.7904
+epoch    1  loss 1.4127
+epoch   10  loss 0.5628
+epoch  100  loss 0.3106
+epoch  500  loss 0.0633
+epoch 1000  loss 0.0343
+epoch 1999  loss 0.0259
+학습 R^2   : 0.9741
+테스트 예측: [60.483  73.3269 89.5809]
+오차       : [ 5.517  -0.3269  2.4191]
+MAE  : 2.7543
+MSE  : 12.1321
+RMSE : 3.4831
+MAPE : 3.8121 %
+테스트 R^2 : 0.8995
+</pre>
+</section>
+
+<section id="s14">
+<h2><span class="n">14</span>정리</h2>
+<div class="tbl"><table>
+<thead><tr><th>단계</th><th style="text-align:left">다중회귀</th><th style="text-align:left">MLP</th></tr></thead>
+<tbody>
+<tr><td>전처리</td><td style="text-align:left">원 단위 그대로</td><td style="text-align:left">입력·출력 표준화</td></tr>
+<tr><td>예측식</td><td style="text-align:left">ŷ = Xb</td><td style="text-align:left">층마다 선형변환 + ReLU 반복</td></tr>
+<tr><td>손실</td><td style="text-align:left">MSE</td><td style="text-align:left">MSE</td></tr>
+<tr><td>기울기</td><td style="text-align:left">∂L/∂b = −(2/n)Xᵀ(y − Xb)</td><td style="text-align:left">연쇄법칙으로 출력층부터 역전파</td></tr>
+<tr><td>해 구하기</td><td style="text-align:left">기울기 = 0 을 직접 풂 (1회)</td><td style="text-align:left">θ ← θ − η∇L 반복 (2000회)</td></tr>
+<tr><td>평가</td><td style="text-align:left">테스트 RMSE 2.9092</td><td style="text-align:left">테스트 RMSE 3.4831</td></tr>
+</tbody></table></div>
+<p>핵심은 두 모형이 같은 손실을 같은 미분으로 줄인다는 점입니다. 선형회귀는 미분식을 0으로 놓고 한 번에 풀 수 있고, MLP는 ReLU 때문에 그럴 수 없어 기울기를 따라 조금씩 내려갑니다. 표현력이 커진 만큼 학습 데이터에는 더 잘 맞지만, 데이터가 적을 때는 테스트 성능이 오히려 떨어질 수 있다는 것까지 이 예제에서 확인할 수 있습니다.</p>
+</section>
+</main>
+</div>
+<button class="theme-btn" type="button" id="themeBtn">테마 전환</button>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.side a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  function spy(){
+    var y=window.scrollY+120, cur=0;
+    secs.forEach(function(s,i){ if(s && s.offsetTop<=y) cur=i; });
+    links.forEach(function(a,i){ a.classList.toggle('on', i===cur); });
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  try{ var saved=localStorage.getItem('mlpreg-theme'); if(saved) root.setAttribute('data-theme',saved); }catch(e){}
+  btn.addEventListener('click',function(){
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme')==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark'; root.setAttribute('data-theme',next);
+    try{ localStorage.setItem('mlpreg-theme',next); }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

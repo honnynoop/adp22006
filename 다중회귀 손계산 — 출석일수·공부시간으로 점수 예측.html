@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>다중회귀 손계산 — 출석일수·공부시간으로 점수 예측</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Spectral:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+:root{
+  --paper:#FAF6EE; --panel:#F3ECDF; --ink:#2B2621; --muted:#6E645A; --rule:#DDD2C1;
+  --accent:#B0532F; --accent-soft:#F4DFD3; --test:#2F6B66; --test-soft:#DCEBE8;
+  --code-bg:#FFFDF8; --code-ink:#3A2E25; --out-bg:#F1EEE6;
+  --serif:'Spectral',Georgia,'Noto Serif KR',serif;
+  --sans:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'D2Coding',Consolas,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1E1B18; --panel:#28241F; --ink:#EDE6DA; --muted:#A99D8E; --rule:#3D372F;
+    --accent:#E08A63; --accent-soft:#3A2A22; --test:#6FB8B0; --test-soft:#1F3432;
+    --code-bg:#231F1B; --code-ink:#E9DFD0; --out-bg:#2B2621;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1E1B18; --panel:#28241F; --ink:#EDE6DA; --muted:#A99D8E; --rule:#3D372F;
+  --accent:#E08A63; --accent-soft:#3A2A22; --test:#6FB8B0; --test-soft:#1F3432;
+  --code-bg:#231F1B; --code-ink:#E9DFD0; --out-bg:#2B2621;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px);scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.75}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:48px;padding:0 24px}
+nav.side{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:100vh;overflow-y:auto;padding:40px 0 24px;border-right:1px solid var(--rule)}
+nav.side .brand{font-family:var(--serif);font-weight:700;font-size:19px;line-height:1.35;margin:0 16px 20px 0}
+nav.side ol{list-style:none;margin:0;padding:0;counter-reset:c}
+nav.side li{counter-increment:c}
+nav.side a{display:flex;gap:10px;padding:6px 12px 6px 0;color:var(--muted);text-decoration:none;font-size:14.5px;border-right:2px solid transparent;margin-right:-1px}
+nav.side a::before{content:counter(c);font-family:var(--mono);font-size:12px;min-width:18px;padding-top:2px;opacity:.8}
+nav.side a:hover{color:var(--ink)}
+nav.side a.on{color:var(--accent);border-right-color:var(--accent);font-weight:500}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding:48px 0 96px;min-width:0}
+header.hero{padding-bottom:28px;border-bottom:1px solid var(--rule);margin-bottom:12px}
+header.hero h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,4.4vw,44px);line-height:1.2;margin:0 0 16px;letter-spacing:-.01em}
+header.hero p{max-width:66ch;color:var(--muted);margin:0}
+.model-eq{margin:28px 0 0;padding:22px 24px;background:var(--panel);border-left:4px solid var(--accent);font-size:1.15em;overflow-x:auto}
+section{padding-top:44px}
+h2{font-family:var(--serif);font-size:27px;font-weight:700;margin:0 0 14px;display:flex;gap:14px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:15px;color:var(--accent);font-weight:600}
+h3{font-size:18px;font-weight:700;margin:28px 0 8px}
+h4{font-size:16px;margin:0 0 6px;font-weight:700}
+p,li{max-width:70ch}
+.tbl{overflow-x:auto;margin:16px 0;border:1px solid var(--rule);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:center}
+thead th{background:var(--panel);font-weight:700;font-size:13.5px}
+tr.sum td{font-weight:700;background:var(--accent-soft);border-bottom:none}
+table.test thead th{background:var(--test-soft)}
+.math{overflow-x:auto;overflow-y:hidden;margin:10px 0;padding:4px 0}
+.box{border:1px solid var(--rule);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--panel)}
+.box.key{border-left:4px solid var(--accent)}
+.box.test{border-left:4px solid var(--test);background:var(--test-soft)}
+.box p:last-child{margin-bottom:0}.box p:first-child{margin-top:0}
+.case{border:1px solid var(--rule);border-left:4px solid var(--test);border-radius:6px;padding:14px 18px;margin:14px 0;overflow-x:auto}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}
+.stat{border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
+.stat b{display:block;font-family:var(--serif);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{font-size:13.5px;color:var(--muted)}
+.stat.t b{color:var(--test)} .stat.a b{color:var(--accent)}
+pre{margin:14px 0;padding:16px 18px;overflow-x:auto;border-radius:6px;font-family:var(--mono);font-size:13.5px;line-height:1.6}
+pre.code{background:var(--code-bg);color:var(--code-ink);border:1px solid var(--rule)}
+pre.out{background:var(--out-bg);color:var(--ink);border:1px dashed var(--rule)}
+.cap{font-size:13px;color:var(--muted);margin:4px 0 -6px}
+figure{margin:18px 0}
+figure svg{width:100%;max-width:600px;height:auto;display:block}
+figcaption{font-size:14px;color:var(--muted);margin-top:6px}
+svg .grid{stroke:var(--rule);stroke-width:1}
+svg .tick{fill:var(--muted);font:12px var(--mono)}
+svg .ax{fill:var(--ink);font:600 13px var(--sans)}
+svg .lbl{fill:var(--ink);font:12.5px var(--sans)}
+svg .ideal{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:6 5}
+svg .res{stroke:var(--accent);stroke-width:1.6;opacity:.55}
+svg .res.te{stroke:var(--test);opacity:.8}
+svg .tr{fill:var(--accent);stroke:var(--paper);stroke-width:1.5}
+svg .ts{fill:var(--test);stroke:var(--paper);stroke-width:1.5}
+code{font-family:var(--mono);font-size:.9em;background:var(--panel);padding:1px 5px;border-radius:3px}
+.theme-btn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:20px;padding:6px 14px;font:13px var(--sans);cursor:pointer}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 18px}
+  nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--rule);padding:24px 0 12px}
+  nav.side ol{display:flex;flex-wrap:wrap;gap:4px 14px}
+  nav.side a{border-right:none;padding:2px 0;font-size:13.5px}
+  main{padding-top:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="side" aria-label="목차">
+  <div class="brand">다중회귀<br>손계산 노트</div>
+  <ol>
+    <li><a href="#s1">문제 설정</a></li>
+    <li><a href="#s2">학습 데이터 10개</a></li>
+    <li><a href="#s3">평균과 편차곱 합</a></li>
+    <li><a href="#s4">회귀계수 구하기</a></li>
+    <li><a href="#s5">행렬 정규방정식 검증</a></li>
+    <li><a href="#s6">학습 데이터 적합도</a></li>
+    <li><a href="#s7">유의성 검정</a></li>
+    <li><a href="#s8">테스트 3개 예측</a></li>
+    <li><a href="#s9">테스트 평가지표</a></li>
+    <li><a href="#s10">예측구간</a></li>
+    <li><a href="#s11">Python 검증</a></li>
+    <li><a href="#s12">정리</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>출석일수와 공부시간으로<br>과목 점수를 예측하는 다중회귀</h1>
+  <p>학습 데이터 10개로 회귀계수를 손으로 구하고, 처음 보는 테스트 3개에 적용해 얼마나 잘 맞히는지 평가합니다. 모든 수치는 numpy·scipy·scikit-learn으로 실제 계산해 검증한 값입니다.</p>
+  <div class="model-eq">\[\hat y = 16.1325 + 1.4306\,x_1 + 2.4422\,x_2\]</div>
+</header>
+
+<section id="s1">
+<h2><span class="n">1</span>문제 설정</h2>
+<p>설명변수가 두 개인 선형 모형을 세웁니다. \(x_1\)은 학기 중 출석일수(30일 만점), \(x_2\)는 주당 평균 공부시간, \(y\)는 과목 점수입니다.</p>
+<div class="math">\[y_i=\beta_0+\beta_1x_{1i}+\beta_2x_{2i}+\varepsilon_i,\qquad \varepsilon_i\sim N(0,\sigma^2)\]</div>
+<p>최소제곱법(OLS)은 잔차제곱합을 최소로 만드는 \(b_0,b_1,b_2\)를 찾습니다.</p>
+<div class="math">\[\text{SSE}(b_0,b_1,b_2)=\sum_{i=1}^{n}\bigl(y_i-b_0-b_1x_{1i}-b_2x_{2i}\bigr)^2\;\longrightarrow\;\min\]</div>
+<p>세 계수로 각각 편미분해 0으로 두면 정규방정식이 나오고, 이를 풀면 계수가 결정됩니다. 이 노트는 두 가지 풀이를 모두 보여줍니다. 4장은 편차를 이용한 2×2 연립방정식 풀이(시험장 손계산용), 5장은 행렬식 \(\mathbf b=(X^\top X)^{-1}X^\top\mathbf y\) 풀이입니다.</p>
+</section>
+
+<section id="s2">
+<h2><span class="n">2</span>학습 데이터 10개</h2>
+<div class="tbl"><table>
+<thead><tr><th>학생 i</th><th>출석일수 x₁</th><th>공부시간 x₂</th><th>점수 y</th></tr></thead>
+<tbody><tr><td>1</td><td>18</td><td>6</td><td>55</td></tr>
+<tr><td>2</td><td>20</td><td>10</td><td>72</td></tr>
+<tr><td>3</td><td>22</td><td>4</td><td>60</td></tr>
+<tr><td>4</td><td>23</td><td>8</td><td>65</td></tr>
+<tr><td>5</td><td>24</td><td>12</td><td>82</td></tr>
+<tr><td>6</td><td>25</td><td>5</td><td>61</td></tr>
+<tr><td>7</td><td>26</td><td>9</td><td>77</td></tr>
+<tr><td>8</td><td>27</td><td>14</td><td>85</td></tr>
+<tr><td>9</td><td>28</td><td>7</td><td>74</td></tr>
+<tr><td>10</td><td>30</td><td>11</td><td>88</td></tr>
+<tr class="sum"><td>합계</td><td>243</td><td>86</td><td>719</td></tr>
+</tbody></table></div>
+<p>평가용 테스트 케이스 3개는 학습에 쓰지 않고 따로 떼어 둡니다.</p>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>출석일수 x₁</th><th>공부시간 x₂</th><th>실제 점수 y</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>21</td><td>7</td><td>66</td></tr>
+<tr><td>T2</td><td>25</td><td>10</td><td>73</td></tr>
+<tr><td>T3</td><td>29</td><td>13</td><td>92</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s3">
+<h2><span class="n">3</span>평균과 편차곱 합</h2>
+<p>먼저 세 변수의 평균을 구합니다.</p>
+<div class="math">\[\bar x_1=\frac{ 243 }{10}=24.3,\qquad \bar x_2=\frac{ 86 }{10}=8.6,\qquad \bar y=\frac{ 719 }{10}=71.9\]</div>
+<p>각 값에서 평균을 뺀 편차 \(d_1=x_1-\bar x_1\), \(d_2=x_2-\bar x_2\), \(d_y=y-\bar y\)를 만들고, 필요한 제곱합과 곱의 합을 표로 누적합니다.</p>
+<div class="tbl"><table>
+<thead><tr><th>i</th><th>d₁</th><th>d₂</th><th>d_y</th><th>d₁²</th><th>d₂²</th><th>d₁d₂</th><th>d₁d_y</th><th>d₂d_y</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>-6.3</td><td>-2.6</td><td>-16.9</td><td>39.69</td><td>6.76</td><td>16.38</td><td>106.47</td><td>43.94</td></tr>
+<tr><td>2</td><td>-4.3</td><td>1.4</td><td>0.1</td><td>18.49</td><td>1.96</td><td>-6.02</td><td>-0.43</td><td>0.14</td></tr>
+<tr><td>3</td><td>-2.3</td><td>-4.6</td><td>-11.9</td><td>5.29</td><td>21.16</td><td>10.58</td><td>27.37</td><td>54.74</td></tr>
+<tr><td>4</td><td>-1.3</td><td>-0.6</td><td>-6.9</td><td>1.69</td><td>0.36</td><td>0.78</td><td>8.97</td><td>4.14</td></tr>
+<tr><td>5</td><td>-0.3</td><td>3.4</td><td>10.1</td><td>0.09</td><td>11.56</td><td>-1.02</td><td>-3.03</td><td>34.34</td></tr>
+<tr><td>6</td><td>0.7</td><td>-3.6</td><td>-10.9</td><td>0.49</td><td>12.96</td><td>-2.52</td><td>-7.63</td><td>39.24</td></tr>
+<tr><td>7</td><td>1.7</td><td>0.4</td><td>5.1</td><td>2.89</td><td>0.16</td><td>0.68</td><td>8.67</td><td>2.04</td></tr>
+<tr><td>8</td><td>2.7</td><td>5.4</td><td>13.1</td><td>7.29</td><td>29.16</td><td>14.58</td><td>35.37</td><td>70.74</td></tr>
+<tr><td>9</td><td>3.7</td><td>-1.6</td><td>2.1</td><td>13.69</td><td>2.56</td><td>-5.92</td><td>7.77</td><td>-3.36</td></tr>
+<tr><td>10</td><td>5.7</td><td>2.4</td><td>16.1</td><td>32.49</td><td>5.76</td><td>13.68</td><td>91.77</td><td>38.64</td></tr><tr class='sum'><td>합계</td><td>0</td><td>0</td><td>0</td><td>122.1</td><td>92.4</td><td>41.2</td><td>275.3</td><td>284.6</td></tr>
+</tbody></table></div>
+<p>표의 마지막 줄이 이후 모든 계산의 재료입니다.</p>
+<div class="math">\[S_{11}=\sum d_1^2=122.1,\quad S_{22}=\sum d_2^2=92.4,\quad S_{12}=\sum d_1d_2=41.2\]</div>
+<div class="math">\[S_{1y}=\sum d_1d_y=275.3,\quad S_{2y}=\sum d_2d_y=284.6,\quad S_{yy}=\sum d_y^2=1156.9\]</div>
+</section>
+
+<section id="s4">
+<h2><span class="n">4</span>회귀계수 구하기</h2>
+<p>편차로 표현한 정규방정식은 기울기 두 개에 대한 2×2 연립방정식입니다.</p>
+<div class="math">\[\begin{cases} S_{11}\,b_1+S_{12}\,b_2=S_{1y}\\ S_{12}\,b_1+S_{22}\,b_2=S_{2y}\end{cases}
+\;\Longrightarrow\;
+\begin{cases} 122.1\,b_1+41.2\,b_2=275.3\\ 41.2\,b_1+92.4\,b_2=284.6\end{cases}\]</div>
+<h3>행렬식 D</h3>
+<div class="math">\[D=S_{11}S_{22}-S_{12}^2=11282.04-1697.44=9584.6\]</div>
+<h3>크라메르 공식으로 b₁, b₂</h3>
+<div class="math">\[b_1=\frac{S_{22}S_{1y}-S_{12}S_{2y}}{D}=\frac{ 25437.72-11725.52 }{ 9584.6 }=\frac{ 13712.20 }{ 9584.6 }=1.4306\]</div>
+<div class="math">\[b_2=\frac{S_{11}S_{2y}-S_{12}S_{1y}}{D}=\frac{ 34749.66-11342.36 }{ 9584.6 }=\frac{ 23407.30 }{ 9584.6 }=2.4422\]</div>
+<h3>절편 b₀</h3>
+<p>회귀평면은 반드시 평균점 \((\bar x_1,\bar x_2,\bar y)\)을 지나므로 절편은 다음과 같습니다.</p>
+<div class="math">\[b_0=\bar y-b_1\bar x_1-b_2\bar x_2=71.9-34.7648-21.0027=16.1325\]</div>
+<div class="box key">
+<p><strong>추정된 회귀식</strong></p>
+<div class="math">\[\hat y=16.1325+1.4306\,x_1+2.4422\,x_2\]</div>
+<p>공부시간을 고정하면 출석이 하루 늘 때 점수가 약 1.4306점, 출석을 고정하면 공부시간이 1시간 늘 때 약 2.4422점 오른다고 해석합니다. 다른 변수를 통제한 상태의 효과이므로 "편회귀계수"라고 부릅니다.</p>
+</div>
+</section>
+
+<section id="s5">
+<h2><span class="n">5</span>행렬 정규방정식 검증</h2>
+<p>같은 계수를 행렬로 구해 교차 확인합니다. 설계행렬 \(X\)의 첫 열은 절편을 위한 1입니다.</p>
+<div class="math">\[X=\begin{bmatrix}1&18&6\\1&20&10\\1&22&4\\1&23&8\\1&24&12\\1&25&5\\1&26&9\\1&27&14\\1&28&7\\1&30&11\end{bmatrix},\qquad \mathbf y=\begin{bmatrix}55\\72\\60\\65\\82\\61\\77\\85\\74\\88\end{bmatrix}\]</div>
+<div class="math">\[X^\top X=\begin{bmatrix} n&\sum x_1&\sum x_2\\ \sum x_1&\sum x_1^2&\sum x_1x_2\\ \sum x_2&\sum x_1x_2&\sum x_2^2\end{bmatrix}=\begin{bmatrix}10&243&86\\243&6027&2131\\86&2131&832\end{bmatrix},\qquad X^\top\mathbf y=\begin{bmatrix}719\\17747\\6468\end{bmatrix}\]</div>
+<div class="math">\[(X^\top X)^{-1}=\begin{bmatrix}4.938161&-0.197296&-0.005102\\-0.197296&0.009640&-0.004299\\-0.005102&-0.004299&0.012739\end{bmatrix}\]</div>
+<div class="math">\[\mathbf b=(X^\top X)^{-1}X^\top\mathbf y=\begin{bmatrix}16.1325\\1.4306\\2.4422\end{bmatrix}\]</div>
+<p>4장의 편차 풀이와 소수점 넷째 자리까지 같습니다. 참고로 \((X^\top X)\)의 행렬식은 \(n\cdot D\)와 같고, 편차 풀이가 사실 이 3×3 문제에서 절편을 먼저 소거한 형태이기 때문입니다. 역행렬의 대각원소 \(c_{00}=4.938161\), \(c_{11}=0.009640\), \(c_{22}=0.012739\)는 7장에서 표준오차를 구할 때 다시 씁니다.</p>
+</section>
+
+<section id="s6">
+<h2><span class="n">6</span>학습 데이터 적합도</h2>
+<p>각 학생의 예측값 \(\hat y_i\)와 잔차 \(e_i=y_i-\hat y_i\)를 계산하고 제곱합을 분해합니다.</p>
+<div class="tbl"><table>
+<thead><tr><th>i</th><th>y</th><th>ŷ</th><th>e = y − ŷ</th><th>e²</th><th>(ŷ − ȳ)²</th><th>(y − ȳ)²</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>55</td><td>56.5372</td><td>-1.5372</td><td>2.3631</td><td>236.0142</td><td>285.61</td></tr>
+<tr><td>2</td><td>72</td><td>69.1673</td><td>2.8327</td><td>8.0244</td><td>7.4679</td><td>0.01</td></tr>
+<tr><td>3</td><td>60</td><td>57.3755</td><td>2.6245</td><td>6.8881</td><td>210.9615</td><td>141.61</td></tr>
+<tr><td>4</td><td>65</td><td>68.5748</td><td>-3.5748</td><td>12.7795</td><td>11.0566</td><td>47.61</td></tr>
+<tr><td>5</td><td>82</td><td>79.7742</td><td>2.2258</td><td>4.9541</td><td>62.0032</td><td>102.01</td></tr>
+<tr><td>6</td><td>61</td><td>64.1096</td><td>-3.1096</td><td>9.6697</td><td>60.6901</td><td>118.81</td></tr>
+<tr><td>7</td><td>77</td><td>75.3090</td><td>1.6910</td><td>2.8596</td><td>11.6211</td><td>26.01</td></tr>
+<tr><td>8</td><td>85</td><td>88.9505</td><td>-3.9505</td><td>15.6066</td><td>290.7200</td><td>171.61</td></tr>
+<tr><td>9</td><td>74</td><td>73.2859</td><td>0.7141</td><td>0.5099</td><td>1.9208</td><td>4.41</td></tr>
+<tr><td>10</td><td>88</td><td>85.9159</td><td>2.0841</td><td>4.3434</td><td>196.4462</td><td>259.21</td></tr><tr class='sum'><td>합계</td><td>719</td><td>719.00</td><td>0.0000</td><td>67.9984</td><td>1088.9016</td><td>1156.90</td></tr>
+</tbody></table></div>
+<p>잔차의 합이 0이고 예측값의 합이 실제값의 합과 같은 것은 절편이 있는 OLS의 성질입니다.</p>
+<h3>제곱합 분해</h3>
+<div class="math">\[\underbrace{\text{SST}}_{ 1156.9 }=\underbrace{\text{SSR}}_{ 1088.9016 }+\underbrace{\text{SSE}}_{ 67.9984 }\]</div>
+<h3>결정계수와 수정 결정계수</h3>
+<div class="math">\[R^2=\frac{\text{SSR}}{\text{SST}}=\frac{ 1088.9016 }{ 1156.9 }=0.9412\]</div>
+<div class="math">\[R^2_{adj}=1-\frac{\text{SSE}/(n-p-1)}{\text{SST}/(n-1)}=1-\frac{ 67.9984/7}{ 1156.9/9}=0.9244\]</div>
+<h3>잔차 분산과 표준오차</h3>
+<div class="math">\[\text{MSE}=s^2=\frac{\text{SSE}}{n-p-1}=\frac{ 67.9984 }{7}=9.7141,\qquad s=\sqrt{ 9.7141 }=3.1167\]</div>
+<p>여기서 \(p=2\)는 설명변수의 개수입니다. 계수를 3개 추정했으므로 자유도는 \(10-3=7\)입니다. \(s\)는 "학습 데이터에서 예측이 평균적으로 약 3.1167점 빗나간다"는 뜻입니다.</p>
+</section>
+
+<section id="s7">
+<h2><span class="n">7</span>유의성 검정</h2>
+<h3>모형 전체: F검정</h3>
+<p>\(H_0:\beta_1=\beta_2=0\) (두 변수 모두 점수와 무관)</p>
+<div class="math">\[F=\frac{\text{SSR}/p}{\text{SSE}/(n-p-1)}=\frac{ 1088.9016/2}{ 9.7141 }=56.05,\qquad F_{0.05}(2,7)=4.7374\]</div>
+<p>\(F=56.05>4.7374\)이고 p값은 \(4.92\times10^{-5}\)이므로 \(H_0\)를 기각합니다. 회귀모형은 유의합니다.</p>
+<h3>개별 계수: t검정</h3>
+<p>계수의 표준오차는 \(\text{SE}(b_j)=\sqrt{s^2\,c_{jj}}\)이며 \(c_{jj}\)는 \((X^\top X)^{-1}\)의 대각원소입니다.</p>
+<div class="math">\[\text{SE}(b_1)=\sqrt{ 9.7141\times0.009640 }=0.3060,\qquad t_1=\frac{ 1.4306 }{ 0.3060 }=4.675\]</div>
+<div class="math">\[\text{SE}(b_2)=\sqrt{ 9.7141\times0.012739 }=0.3518,\qquad t_2=\frac{ 2.4422 }{ 0.3518 }=6.942\]</div>
+<div class="tbl"><table>
+<thead><tr><th>계수</th><th>추정값</th><th>표준오차</th><th>t</th><th>p값</th><th>|t| &gt; 2.3646 ?</th></tr></thead>
+<tbody>
+<tr><td>b₀ 절편</td><td>16.1325</td><td>6.9260</td><td>2.329</td><td>0.0527</td><td>아니오</td></tr>
+<tr><td>b₁ 출석일수</td><td>1.4306</td><td>0.3060</td><td>4.675</td><td>0.0023</td><td>예</td></tr>
+<tr><td>b₂ 공부시간</td><td>2.4422</td><td>0.3518</td><td>6.942</td><td>0.0002</td><td>예</td></tr>
+</tbody></table></div>
+<p>임계값 \(t_{0.025}(7)=2.3646\) 기준으로 출석일수와 공부시간 모두 5% 수준에서 유의합니다. 절편은 p값이 0.05를 약간 넘지만, 절편 자체는 "출석 0일·공부 0시간"이라는 데이터 범위 밖의 값이라 해석상 중요도가 낮습니다.</p>
+<h3>다중공선성 점검: VIF</h3>
+<p>설명변수가 두 개일 때 VIF는 두 변수의 상관계수로 바로 구할 수 있습니다.</p>
+<div class="math">\[r_{12}=\frac{S_{12}}{\sqrt{S_{11}S_{22}}}=0.3879,\qquad \text{VIF}=\frac{1}{1-r_{12}^2}=\frac{1}{1-0.1505}=1.177\]</div>
+<p>VIF가 10은 물론 5보다도 훨씬 작으므로 다중공선성 문제는 없습니다.</p>
+</section>
+
+<section id="s8">
+<h2><span class="n">8</span>테스트 3개 예측</h2>
+<p>학습에 쓰지 않은 세 학생의 값을 회귀식에 그대로 대입합니다.</p>
+
+<div class='case'><h4>테스트 T1 — 출석 21일, 공부 7시간, 실제 66점</h4>\[\begin{aligned}\hat y_{T1}&=16.1325+1.4306\times21+2.4422\times7\\&=16.1325+30.0436+17.0952\\&=63.2714\end{aligned}\]\[e_{T1}=y-\hat y=66-63.2714=2.7286\]</div>
+<div class='case'><h4>테스트 T2 — 출석 25일, 공부 10시간, 실제 73점</h4>\[\begin{aligned}\hat y_{T2}&=16.1325+1.4306\times25+2.4422\times10\\&=16.1325+35.7662+24.4218\\&=76.3205\end{aligned}\]\[e_{T2}=y-\hat y=73-76.3205=-3.3205\]</div>
+<div class='case'><h4>테스트 T3 — 출석 29일, 공부 13시간, 실제 92점</h4>\[\begin{aligned}\hat y_{T3}&=16.1325+1.4306\times29+2.4422\times13\\&=16.1325+41.4888+31.7483\\&=89.3696\end{aligned}\]\[e_{T3}=y-\hat y=92-89.3696=2.6304\]</div>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>x₁</th><th>x₂</th><th>실제 y</th><th>예측 ŷ</th><th>오차 e</th><th>|e|</th><th>e²</th><th>|e|/y</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>21</td><td>7</td><td>66</td><td>63.2714</td><td>2.7286</td><td>2.7286</td><td>7.4454</td><td>4.13%</td></tr>
+<tr><td>T2</td><td>25</td><td>10</td><td>73</td><td>76.3205</td><td>-3.3205</td><td>3.3205</td><td>11.0257</td><td>4.55%</td></tr>
+<tr><td>T3</td><td>29</td><td>13</td><td>92</td><td>89.3696</td><td>2.6304</td><td>2.6304</td><td>6.9188</td><td>2.86%</td></tr><tr class='sum'><td>평균</td><td></td><td></td><td>77</td><td></td><td></td><td>2.8932</td><td>8.4633</td><td>3.85%</td></tr>
+</tbody></table></div>
+<figure>
+<svg viewBox='0 0 560 420' role='img' aria-label='실제 점수와 예측 점수 비교 산점도'>
+<line x1='60.0' y1='20' x2='60.0' y2='370' class='grid'/><line x1='60' y1='370.0' x2='540' y2='370.0' class='grid'/>
+<text x='60.0' y='388' class='tick' text-anchor='middle'>50</text><text x='52' y='374.0' class='tick' text-anchor='end'>50</text>
+<line x1='113.3' y1='20' x2='113.3' y2='370' class='grid'/><line x1='60' y1='331.1' x2='540' y2='331.1' class='grid'/>
+<text x='113.3' y='388' class='tick' text-anchor='middle'>55</text><text x='52' y='335.1' class='tick' text-anchor='end'>55</text>
+<line x1='166.7' y1='20' x2='166.7' y2='370' class='grid'/><line x1='60' y1='292.2' x2='540' y2='292.2' class='grid'/>
+<text x='166.7' y='388' class='tick' text-anchor='middle'>60</text><text x='52' y='296.2' class='tick' text-anchor='end'>60</text>
+<line x1='220.0' y1='20' x2='220.0' y2='370' class='grid'/><line x1='60' y1='253.3' x2='540' y2='253.3' class='grid'/>
+<text x='220.0' y='388' class='tick' text-anchor='middle'>65</text><text x='52' y='257.3' class='tick' text-anchor='end'>65</text>
+<line x1='273.3' y1='20' x2='273.3' y2='370' class='grid'/><line x1='60' y1='214.4' x2='540' y2='214.4' class='grid'/>
+<text x='273.3' y='388' class='tick' text-anchor='middle'>70</text><text x='52' y='218.4' class='tick' text-anchor='end'>70</text>
+<line x1='326.7' y1='20' x2='326.7' y2='370' class='grid'/><line x1='60' y1='175.6' x2='540' y2='175.6' class='grid'/>
+<text x='326.7' y='388' class='tick' text-anchor='middle'>75</text><text x='52' y='179.6' class='tick' text-anchor='end'>75</text>
+<line x1='380.0' y1='20' x2='380.0' y2='370' class='grid'/><line x1='60' y1='136.7' x2='540' y2='136.7' class='grid'/>
+<text x='380.0' y='388' class='tick' text-anchor='middle'>80</text><text x='52' y='140.7' class='tick' text-anchor='end'>80</text>
+<line x1='433.3' y1='20' x2='433.3' y2='370' class='grid'/><line x1='60' y1='97.8' x2='540' y2='97.8' class='grid'/>
+<text x='433.3' y='388' class='tick' text-anchor='middle'>85</text><text x='52' y='101.8' class='tick' text-anchor='end'>85</text>
+<line x1='486.7' y1='20' x2='486.7' y2='370' class='grid'/><line x1='60' y1='58.9' x2='540' y2='58.9' class='grid'/>
+<text x='486.7' y='388' class='tick' text-anchor='middle'>90</text><text x='52' y='62.9' class='tick' text-anchor='end'>90</text>
+<line x1='540.0' y1='20' x2='540.0' y2='370' class='grid'/><line x1='60' y1='20.0' x2='540' y2='20.0' class='grid'/>
+<text x='540.0' y='388' class='tick' text-anchor='middle'>95</text><text x='52' y='24.0' class='tick' text-anchor='end'>95</text>
+<line x1='60.0' y1='370.0' x2='540.0' y2='20.0' class='ideal'/>
+<text x='508.0' y='31.7' class='lbl' text-anchor='end'>ŷ = y (완벽한 예측)</text>
+<line x1='113.3' y1='331.1' x2='113.3' y2='319.2' class='res'/>
+<circle cx='113.3' cy='319.2' r='5.5' class='tr'/>
+<line x1='294.7' y1='198.9' x2='294.7' y2='220.9' class='res'/>
+<circle cx='294.7' cy='220.9' r='5.5' class='tr'/>
+<line x1='166.7' y1='292.2' x2='166.7' y2='312.6' class='res'/>
+<circle cx='166.7' cy='312.6' r='5.5' class='tr'/>
+<line x1='220.0' y1='253.3' x2='220.0' y2='225.5' class='res'/>
+<circle cx='220.0' cy='225.5' r='5.5' class='tr'/>
+<line x1='401.3' y1='121.1' x2='401.3' y2='138.4' class='res'/>
+<circle cx='401.3' cy='138.4' r='5.5' class='tr'/>
+<line x1='177.3' y1='284.4' x2='177.3' y2='260.3' class='res'/>
+<circle cx='177.3' cy='260.3' r='5.5' class='tr'/>
+<line x1='348.0' y1='160.0' x2='348.0' y2='173.2' class='res'/>
+<circle cx='348.0' cy='173.2' r='5.5' class='tr'/>
+<line x1='433.3' y1='97.8' x2='433.3' y2='67.1' class='res'/>
+<circle cx='433.3' cy='67.1' r='5.5' class='tr'/>
+<line x1='316.0' y1='183.3' x2='316.0' y2='188.9' class='res'/>
+<circle cx='316.0' cy='188.9' r='5.5' class='tr'/>
+<line x1='465.3' y1='74.4' x2='465.3' y2='90.7' class='res'/>
+<circle cx='465.3' cy='90.7' r='5.5' class='tr'/>
+<line x1='230.7' y1='245.6' x2='230.7' y2='266.8' class='res te'/>
+<rect x='224.7' y='260.8' width='12' height='12' transform='rotate(45 230.7 266.8)' class='ts'/>
+<text x='240.7' y='270.8' class='lbl'>T1</text>
+<line x1='305.3' y1='191.1' x2='305.3' y2='165.3' class='res te'/>
+<rect x='299.3' y='159.3' width='12' height='12' transform='rotate(45 305.3 165.3)' class='ts'/>
+<text x='315.3' y='169.3' class='lbl'>T2</text>
+<line x1='508.0' y1='43.3' x2='508.0' y2='63.8' class='res te'/>
+<rect x='502.0' y='57.8' width='12' height='12' transform='rotate(45 508.0 63.8)' class='ts'/>
+<text x='518.0' y='67.8' class='lbl'>T3</text>
+<text x='300.0' y='410' class='ax' text-anchor='middle'>실제 점수 y</text>
+<text x='16' y='195.0' class='ax' text-anchor='middle' transform='rotate(-90 16 195.0)'>예측 점수 ŷ</text>
+<circle cx='80' cy='34' r='5.5' class='tr'/><text x='92' y='38' class='lbl'>학습 데이터 10개</text>
+<rect x='74' y='50' width='12' height='12' transform='rotate(45 80 56)' class='ts'/><text x='92' y='60' class='lbl'>테스트 3개</text>
+</svg>
+<figcaption>대각 점선에 가까울수록 정확한 예측입니다. 세로 선분의 길이가 오차의 크기입니다. 테스트 3개(◆)의 오차는 학습 데이터(●)의 오차와 비슷한 수준입니다.</figcaption>
+</figure>
+</section>
+
+<section id="s9">
+<h2><span class="n">9</span>테스트 평가지표</h2>
+<p>8장 표의 오차 세 개로 대표적인 회귀 평가지표를 하나씩 계산합니다.</p>
+<h3>MAE — 평균절대오차</h3>
+<div class="math">\[\text{MAE}=\frac1m\sum|y_i-\hat y_i|=\frac{ 2.7286+3.3205+2.6304 }{3}=2.8932\]</div>
+<h3>MSE — 평균제곱오차</h3>
+<div class="math">\[\text{MSE}_{test}=\frac1m\sum(y_i-\hat y_i)^2=\frac{ 7.4454+11.0257+6.9188 }{3}=8.4633\]</div>
+<h3>RMSE — 평균제곱근오차</h3>
+<div class="math">\[\text{RMSE}=\sqrt{\text{MSE}_{test}}=\sqrt{ 8.4633 }=2.9092\]</div>
+<h3>MAPE — 평균절대백분율오차</h3>
+<div class="math">\[\text{MAPE}=\frac{100}{m}\sum\left|\frac{y_i-\hat y_i}{y_i}\right|=\frac{ 4.13+4.55+2.86 }{3}=3.85\%\]</div>
+<h3>테스트 R²</h3>
+<p>테스트 R²는 테스트 실제값의 평균 \(\bar y_{test}=77\)을 기준선으로 씁니다(scikit-learn의 <code>r2_score</code>와 같은 정의).</p>
+<div class="math">\[\text{SST}_{test}=121+16+225=362.0,\qquad \text{SSE}_{test}=25.3900\]</div>
+<div class="math">\[R^2_{test}=1-\frac{\text{SSE}_{test}}{\text{SST}_{test}}=1-\frac{ 25.3900 }{ 362.0 }=0.9299\]</div>
+<div class="grid2">
+  <div class="stat t"><b>2.8932</b><span>MAE (점)</span></div>
+  <div class="stat t"><b>2.9092</b><span>RMSE (점)</span></div>
+  <div class="stat t"><b>3.85%</b><span>MAPE</span></div>
+  <div class="stat t"><b>0.9299</b><span>테스트 R²</span></div>
+</div>
+<div class="box test">
+<p><strong>학습 vs 테스트 비교</strong> — 학습 데이터의 잔차 표준오차는 \(s=3.1167\), 테스트 RMSE는 2.9092로 비율이 0.933입니다. 테스트 오차가 학습 오차보다 작거나 비슷하므로 과적합의 징후는 없습니다. R²도 학습 0.9412, 테스트 0.9299로 큰 차이가 없습니다.</p>
+<p>다만 테스트가 3개뿐이라 지표의 변동이 큽니다. 실무에서는 K-fold 교차검증으로 여러 번 평가해 평균을 봅니다.</p>
+</div>
+</section>
+
+<section id="s10">
+<h2><span class="n">10</span>예측구간</h2>
+<p>점 하나로 예측하는 대신, 새 학생 한 명의 점수가 95% 확률로 들어갈 범위를 구합니다. 새 관측점 \(\mathbf x_0=(1,x_1,x_2)^\top\)의 레버리지 \(h_0\)가 필요합니다.</p>
+<div class="math">\[h_0=\mathbf x_0^\top (X^\top X)^{-1}\mathbf x_0,\qquad \hat y_0\pm t_{0.025}(7)\cdot s\sqrt{1+h_0}\]</div>
+<p>T1(\(\mathbf x_0=(1,21,7)\))을 예로 들면 \(h_0=0.1922\)이므로</p>
+<div class="math">\[2.3646\times3.1167\times\sqrt{1+0.1922}=8.05\]</div>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>h₀</th><th>반폭 ±</th><th>95% 예측구간</th><th>실제 y</th><th>판정</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>0.1922</td><td>8.05</td><td>[55.22, 71.32]</td><td>66</td><td>구간 안</td></tr>
+<tr><td>T2</td><td>0.1213</td><td>7.80</td><td>[68.52, 84.12]</td><td>73</td><td>구간 안</td></tr>
+<tr><td>T3</td><td>0.3818</td><td>8.66</td><td>[80.71, 98.03]</td><td>92</td><td>구간 안</td></tr>
+</tbody></table></div>
+<p>세 실제 점수 모두 예측구간 안에 들어옵니다. T3의 \(h_0\)가 가장 큰 이유는 출석 29일·공부 13시간이 학습 데이터의 중심에서 가장 멀리 떨어져 있기 때문이고, 그만큼 구간도 넓어집니다.</p>
+</section>
+
+<section id="s11">
+<h2><span class="n">11</span>Python 검증</h2>
+<p>아래 코드를 그대로 실행하면 손계산 결과를 확인할 수 있습니다. numpy와 scikit-learn만 필요합니다.</p>
+<pre class="code">import numpy as np
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# 학습 데이터 10개: [출석일수, 공부시간], 점수
+X_train = np.array([[18, 6], [20, 10], [22, 4], [23, 8], [24, 12],
+                    [25, 5], [26, 9], [27, 14], [28, 7], [30, 11]], dtype=float)
+y_train = np.array([55, 72, 60, 65, 82, 61, 77, 85, 74, 88], dtype=float)
+
+# 테스트 케이스 3개
+X_test = np.array([[21, 7], [25, 10], [29, 13]], dtype=float)
+y_test = np.array([66, 73, 92], dtype=float)
+
+# 1) 정규방정식으로 직접 계산: beta = (X'X)^-1 X'y
+X = np.column_stack([np.ones(len(X_train)), X_train])
+beta = np.linalg.inv(X.T @ X) @ X.T @ y_train
+print("정규방정식 beta :", np.round(beta, 4))
+
+# 2) scikit-learn 교차 확인
+model = LinearRegression().fit(X_train, y_train)
+print("sklearn b0, b1, b2:", round(model.intercept_, 4), np.round(model.coef_, 4))
+print("학습 R^2         :", round(model.score(X_train, y_train), 4))
+
+# 3) 테스트 평가
+y_pred = model.predict(X_test)
+print("테스트 예측값    :", np.round(y_pred, 4))
+print("오차 (y - y_hat) :", np.round(y_test - y_pred, 4))
+print("MAE  :", round(mean_absolute_error(y_test, y_pred), 4))
+print("MSE  :", round(mean_squared_error(y_test, y_pred), 4))
+print("RMSE :", round(np.sqrt(mean_squared_error(y_test, y_pred)), 4))
+print("MAPE :", round(np.mean(np.abs((y_test - y_pred) / y_test)) * 100, 4), "%")
+print("테스트 R^2 :", round(r2_score(y_test, y_pred), 4))
+</pre>
+<p class="cap">실행 결과</p>
+<pre class="out">정규방정식 beta : [16.1325  1.4306  2.4422]
+sklearn b0, b1, b2: 16.1325 [1.4306 2.4422]
+학습 R^2         : 0.9412
+테스트 예측값    : [63.2714 76.3205 89.3696]
+오차 (y - y_hat) : [ 2.7286 -3.3205  2.6304]
+MAE  : 2.8932
+MSE  : 8.4633
+RMSE : 2.9092
+MAPE : 3.8473 %
+테스트 R^2 : 0.9299
+</pre>
+</section>
+
+<section id="s12">
+<h2><span class="n">12</span>정리</h2>
+<div class="tbl"><table>
+<thead><tr><th>단계</th><th style="text-align:left">핵심 수식</th><th>결과</th></tr></thead>
+<tbody>
+<tr><td>계수 추정</td><td style="text-align:left">b = (XᵀX)⁻¹Xᵀy</td><td>16.1325, 1.4306, 2.4422</td></tr>
+<tr><td>학습 적합도</td><td style="text-align:left">R² = SSR / SST</td><td>0.9412 (수정 0.9244)</td></tr>
+<tr><td>모형 유의성</td><td style="text-align:left">F = MSR / MSE</td><td>56.05</td></tr>
+<tr><td>다중공선성</td><td style="text-align:left">VIF = 1 / (1 − r₁₂²)</td><td>1.177</td></tr>
+<tr><td>테스트 오차</td><td style="text-align:left">MAE · RMSE · MAPE</td><td>2.8932 · 2.9092 · 3.85%</td></tr>
+<tr><td>테스트 설명력</td><td style="text-align:left">1 − SSE / SST (테스트)</td><td>0.9299</td></tr>
+</tbody></table></div>
+<p>출석일수와 공부시간 모두 점수에 유의한 양의 효과를 보이며, 공부시간 1시간의 효과(2.4422점)가 출석 1일의 효과(1.4306점)보다 큽니다. 다만 두 변수의 단위가 달라 계수 크기만으로 "더 중요하다"고 단정할 수는 없고, 비교하려면 표준화 계수를 따로 구해야 합니다. 새 데이터 3개에서 평균 약 2.8932점 차이로 예측했고, 학습과 테스트 성능이 비슷해 이 모형은 일반화가 잘 된다고 볼 수 있습니다.</p>
+</section>
+</main>
+</div>
+<button class="theme-btn" type="button" id="themeBtn">테마 전환</button>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.side a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  function spy(){
+    var y=window.scrollY+120, cur=0;
+    secs.forEach(function(s,i){ if(s && s.offsetTop<=y) cur=i; });
+    links.forEach(function(a,i){ a.classList.toggle('on', i===cur); });
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  try{ var saved=localStorage.getItem('mreg-theme'); if(saved) root.setAttribute('data-theme',saved); }catch(e){}
+  btn.addEventListener('click',function(){
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme')==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark'; root.setAttribute('data-theme',next);
+    try{ localStorage.setItem('mreg-theme',next); }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>다중회귀와 표준화 — 손계산에 효과가 있을까</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Spectral:ital,wght@0,500;0,700;1,500&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] }, svg: { fontCache: 'global' } };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" async></script>
+<style>
+:root{
+  --paper:#FAF6EE; --panel:#F3ECDF; --ink:#2B2621; --muted:#6E645A; --rule:#DDD2C1;
+  --accent:#B0532F; --accent-soft:#F4DFD3; --test:#2F6B66; --test-soft:#DCEBE8;
+  --code-bg:#FFFDF8; --code-ink:#3A2E25; --out-bg:#F1EEE6;
+  --serif:'Spectral',Georgia,'Noto Serif KR',serif;
+  --sans:'Noto Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,'D2Coding',Consolas,monospace;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1E1B18; --panel:#28241F; --ink:#EDE6DA; --muted:#A99D8E; --rule:#3D372F;
+    --accent:#E08A63; --accent-soft:#3A2A22; --test:#6FB8B0; --test-soft:#1F3432;
+    --code-bg:#231F1B; --code-ink:#E9DFD0; --out-bg:#2B2621;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#1E1B18; --panel:#28241F; --ink:#EDE6DA; --muted:#A99D8E; --rule:#3D372F;
+  --accent:#E08A63; --accent-soft:#3A2A22; --test:#6FB8B0; --test-soft:#1F3432;
+  --code-bg:#231F1B; --code-ink:#E9DFD0; --out-bg:#2B2621;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 16px);scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.75}
+.wrap{display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1180px;margin:0 auto;gap:48px;padding:0 24px}
+nav.side{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;height:100vh;overflow-y:auto;padding:40px 0 24px;border-right:1px solid var(--rule)}
+nav.side .brand{font-family:var(--serif);font-weight:700;font-size:19px;line-height:1.35;margin:0 16px 20px 0}
+nav.side ol{list-style:none;margin:0;padding:0;counter-reset:c}
+nav.side li{counter-increment:c}
+nav.side a{display:flex;gap:10px;padding:6px 12px 6px 0;color:var(--muted);text-decoration:none;font-size:14.5px;border-right:2px solid transparent;margin-right:-1px}
+nav.side a::before{content:counter(c);font-family:var(--mono);font-size:12px;min-width:18px;padding-top:2px;opacity:.8}
+nav.side a:hover{color:var(--ink)}
+nav.side a.on{color:var(--accent);border-right-color:var(--accent);font-weight:500}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{padding:48px 0 96px;min-width:0}
+header.hero{padding-bottom:28px;border-bottom:1px solid var(--rule);margin-bottom:12px}
+header.hero h1{font-family:var(--serif);font-weight:700;font-size:clamp(30px,4.4vw,44px);line-height:1.2;margin:0 0 16px;letter-spacing:-.01em}
+header.hero p{max-width:66ch;color:var(--muted);margin:0}
+.model-eq{margin:28px 0 0;padding:22px 24px;background:var(--panel);border-left:4px solid var(--accent);font-size:1.15em;overflow-x:auto}
+section{padding-top:44px}
+h2{font-family:var(--serif);font-size:27px;font-weight:700;margin:0 0 14px;display:flex;gap:14px;align-items:baseline}
+h2 .n{font-family:var(--mono);font-size:15px;color:var(--accent);font-weight:600}
+h3{font-size:18px;font-weight:700;margin:28px 0 8px}
+h4{font-size:16px;margin:0 0 6px;font-weight:700}
+p,li{max-width:70ch}
+.tbl{overflow-x:auto;margin:16px 0;border:1px solid var(--rule);border-radius:6px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;font-variant-numeric:tabular-nums}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:center}
+thead th{background:var(--panel);font-weight:700;font-size:13.5px}
+tr.sum td{font-weight:700;background:var(--accent-soft);border-bottom:none}
+table.test thead th{background:var(--test-soft)}
+.math{overflow-x:auto;overflow-y:hidden;margin:10px 0;padding:4px 0}
+.box{border:1px solid var(--rule);border-radius:6px;padding:16px 20px;margin:18px 0;background:var(--panel)}
+.box.key{border-left:4px solid var(--accent)}
+.box.test{border-left:4px solid var(--test);background:var(--test-soft)}
+.box p:last-child{margin-bottom:0}.box p:first-child{margin-top:0}
+.case{border:1px solid var(--rule);border-left:4px solid var(--test);border-radius:6px;padding:14px 18px;margin:14px 0;overflow-x:auto}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}
+.stat{border:1px solid var(--rule);border-radius:6px;padding:12px 14px}
+.stat b{display:block;font-family:var(--serif);font-size:26px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat span{font-size:13.5px;color:var(--muted)}
+.stat.t b{color:var(--test)} .stat.a b{color:var(--accent)}
+pre{margin:14px 0;padding:16px 18px;overflow-x:auto;border-radius:6px;font-family:var(--mono);font-size:13.5px;line-height:1.6}
+pre.code{background:var(--code-bg);color:var(--code-ink);border:1px solid var(--rule)}
+pre.out{background:var(--out-bg);color:var(--ink);border:1px dashed var(--rule)}
+.cap{font-size:13px;color:var(--muted);margin:4px 0 -6px}
+figure{margin:18px 0}
+figure svg{width:100%;max-width:600px;height:auto;display:block}
+figcaption{font-size:14px;color:var(--muted);margin-top:6px}
+svg .grid{stroke:var(--rule);stroke-width:1}
+svg .tick{fill:var(--muted);font:12px var(--mono)}
+svg .ax{fill:var(--ink);font:600 13px var(--sans)}
+svg .lbl{fill:var(--ink);font:12.5px var(--sans)}
+svg .ideal{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:6 5}
+svg .res{stroke:var(--accent);stroke-width:1.6;opacity:.55}
+svg .res.te{stroke:var(--test);opacity:.8}
+svg .tr{fill:var(--accent);stroke:var(--paper);stroke-width:1.5}
+svg .barA{fill:var(--muted);opacity:.55}
+svg .barB{fill:var(--accent)}
+figure svg.wide{max-width:720px}
+svg .ts{fill:var(--test);stroke:var(--paper);stroke-width:1.5}
+code{font-family:var(--mono);font-size:.9em;background:var(--panel);padding:1px 5px;border-radius:3px}
+.theme-btn{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--panel);color:var(--ink);border:1px solid var(--rule);border-radius:20px;padding:6px 14px;font:13px var(--sans);cursor:pointer}
+@media (max-width:900px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 18px}
+  nav.side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--rule);padding:24px 0 12px}
+  nav.side ol{display:flex;flex-wrap:wrap;gap:4px 14px}
+  nav.side a{border-right:none;padding:2px 0;font-size:13.5px}
+  main{padding-top:28px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav class="side" aria-label="목차">
+  <div class="brand">다중회귀와<br>표준화</div>
+  <ol>
+    <li><a href="#s1">결론 먼저</a></li>
+    <li><a href="#s2">원자료 회귀 복습</a></li>
+    <li><a href="#s3">데이터 표준화</a></li>
+    <li><a href="#s4">상관행렬 방정식</a></li>
+    <li><a href="#s5">원래 단위로 복원</a></li>
+    <li><a href="#s6">바뀌지 않는 값</a></li>
+    <li><a href="#s7">테스트 예측 비교</a></li>
+    <li><a href="#s8">변수 중요도 비교</a></li>
+    <li><a href="#s9">수치 안정성</a></li>
+    <li><a href="#s10">Python 검증</a></li>
+    <li><a href="#s11">언제 표준화할까</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <h1>다중회귀 손계산에<br>표준화는 효과가 있을까</h1>
+  <p>출석일수·공부시간·점수 데이터 10개로 표준화 전후를 나란히 계산합니다. 예측과 검정 결과는 하나도 바뀌지 않고, 계수의 의미와 계산의 형태만 바뀐다는 것을 수식과 숫자로 확인합니다.</p>
+  <div class="model-eq">\[\beta_j^*=b_j\cdot\frac{s_{x_j}}{s_y}\qquad\Longleftrightarrow\qquad b_j=\beta_j^*\cdot\frac{s_y}{s_{x_j}}\]</div>
+</header>
+
+<section id="s1">
+<h2><span class="n">1</span>결론 먼저</h2>
+<div class="tbl"><table>
+<thead><tr><th>항목</th><th>표준화 후</th><th style="text-align:left">이번 데이터</th></tr></thead>
+<tbody>
+<tr><td>예측값 ŷ, 잔차, SSE</td><td>변화 없음</td><td style="text-align:left">테스트 예측 63.2714 · 76.3205 · 89.3696 동일</td></tr>
+<tr><td>R², 수정 R², F</td><td>변화 없음</td><td style="text-align:left">R² 0.9412, F 56.0477</td></tr>
+<tr><td>계수의 t값, p값</td><td>변화 없음</td><td style="text-align:left">t = 4.6750, 6.9423</td></tr>
+<tr><td>계수 값</td><td>바뀜</td><td style="text-align:left">1.4306, 2.4422 → 0.4648, 0.6902</td></tr>
+<tr><td>절편</td><td>0이 됨</td><td style="text-align:left">16.1325 → 0</td></tr>
+<tr><td>XᵀX</td><td>상관행렬이 됨</td><td style="text-align:left">조건수 33628.6 → 2.2674</td></tr>
+</tbody></table></div>
+<div class="box key">
+<p>표준화는 모형의 <strong>성능</strong>을 바꾸지 않습니다. 바뀌는 것은 계수의 <strong>해석</strong>(변수끼리 영향력 비교 가능)과 계산의 <strong>형태</strong>(상관계수만으로 풀림, 수치적으로 안정)입니다. 경사하강법으로 학습하는 MLP와 달리, 닫힌 해를 쓰는 OLS에서는 표준화가 결과에 영향을 주지 않습니다.</p>
+</div>
+</section>
+
+<section id="s2">
+<h2><span class="n">2</span>원자료 회귀 복습</h2>
+<p>앞의 손계산에서 구한 평균과 편차 제곱합·곱의 합입니다.</p>
+<div class="math">\[\bar x_1=24.3,\quad \bar x_2=8.6,\quad \bar y=71.9\]</div>
+<div class="math">\[S_{11}=122.1,\;S_{22}=92.4,\;S_{12}=41.2,\;S_{1y}=275.3,\;S_{2y}=284.6,\;S_{yy}=1156.9\]</div>
+<p>이 값으로 구한 회귀식은 다음과 같았습니다.</p>
+<div class="math">\[\hat y=16.1325+1.4306\,x_1+2.4422\,x_2\]</div>
+<p>편차를 쓰는 풀이는 이미 평균을 빼서 절편을 소거한 방식입니다. 표준화는 여기서 한 걸음 더 나아가 표준편차로 나누는 것입니다.</p>
+</section>
+
+<section id="s3">
+<h2><span class="n">3</span>데이터 표준화</h2>
+<p>세 변수를 모두 평균 0, 표준편차 1로 바꿉니다. 여기서는 표본표준편차(\(n-1\)로 나눔)를 씁니다. \(n\)으로 나눠도 표준화 계수는 똑같이 나옵니다. 분자·분모에서 같은 비율로 약분되기 때문입니다.</p>
+<div class="math">\[s_{x_1}=\sqrt{\frac{S_{11}}{n-1}}=\sqrt{\frac{ 122.1 }{9}}=3.6833,\quad s_{x_2}=\sqrt{\frac{ 92.4 }{9}}=3.2042,\quad s_y=\sqrt{\frac{ 1156.9 }{9}}=11.3377\]</div>
+<div class="math">\[z_{1i}=\frac{x_{1i}-\bar x_1}{s_{x_1}},\qquad z_{2i}=\frac{x_{2i}-\bar x_2}{s_{x_2}},\qquad z_{yi}=\frac{y_i-\bar y}{s_y}\]</div>
+<div class="tbl"><table>
+<thead><tr><th>i</th><th>x₁</th><th>x₂</th><th>y</th><th>z₁</th><th>z₂</th><th>z_y</th></tr></thead>
+<tbody><tr><td>1</td><td>18</td><td>6</td><td>55</td><td>-1.7104</td><td>-0.8114</td><td>-1.4906</td></tr>
+<tr><td>2</td><td>20</td><td>10</td><td>72</td><td>-1.1674</td><td>0.4369</td><td>0.0088</td></tr>
+<tr><td>3</td><td>22</td><td>4</td><td>60</td><td>-0.6244</td><td>-1.4356</td><td>-1.0496</td></tr>
+<tr><td>4</td><td>23</td><td>8</td><td>65</td><td>-0.3529</td><td>-0.1873</td><td>-0.6086</td></tr>
+<tr><td>5</td><td>24</td><td>12</td><td>82</td><td>-0.0814</td><td>1.0611</td><td>0.8908</td></tr>
+<tr><td>6</td><td>25</td><td>5</td><td>61</td><td>0.1900</td><td>-1.1235</td><td>-0.9614</td></tr>
+<tr><td>7</td><td>26</td><td>9</td><td>77</td><td>0.4615</td><td>0.1248</td><td>0.4498</td></tr>
+<tr><td>8</td><td>27</td><td>14</td><td>85</td><td>0.7330</td><td>1.6853</td><td>1.1554</td></tr>
+<tr><td>9</td><td>28</td><td>7</td><td>74</td><td>1.0045</td><td>-0.4994</td><td>0.1852</td></tr>
+<tr><td>10</td><td>30</td><td>11</td><td>88</td><td>1.5475</td><td>0.7490</td><td>1.4200</td></tr>
+<tr class='sum'><td>평균 / 표준편차</td><td colspan='3'>원자료</td><td>0 / 1</td><td>0 / 1</td><td>0 / 1</td></tr>
+</tbody></table></div>
+</section>
+
+<section id="s4">
+<h2><span class="n">4</span>상관행렬 방정식</h2>
+<p>표준화된 변수끼리의 편차곱 합을 \(n-1\)로 나누면 그대로 상관계수가 됩니다. 그래서 정규방정식이 상관계수 3개만으로 표현됩니다.</p>
+<div class="math">\[r_{12}=\frac{S_{12}}{\sqrt{S_{11}S_{22}}}=\frac{ 41.2 }{\sqrt{ 122.1\times92.4 }}=0.3879\]</div>
+<div class="math">\[r_{1y}=\frac{S_{1y}}{\sqrt{S_{11}S_{yy}}}=\frac{ 275.3 }{\sqrt{ 122.1\times1156.9 }}=0.7325,\qquad r_{2y}=\frac{S_{2y}}{\sqrt{S_{22}S_{yy}}}=\frac{ 284.6 }{\sqrt{ 92.4\times1156.9 }}=0.8705\]</div>
+<p>표준화 후에는 모든 평균이 0이므로 절편 \(\beta_0^*=0\)이고, 풀 식은 2×2 하나뿐입니다.</p>
+<div class="math">\[\begin{bmatrix}1&r_{12}\\ r_{12}&1\end{bmatrix}\begin{bmatrix}\beta_1^*\\ \beta_2^*\end{bmatrix}=\begin{bmatrix}r_{1y}\\ r_{2y}\end{bmatrix}
+\;\Longrightarrow\;
+\begin{bmatrix}1&0.3879\\ 0.3879&1\end{bmatrix}\begin{bmatrix}\beta_1^*\\ \beta_2^*\end{bmatrix}=\begin{bmatrix}0.7325\\ 0.8705\end{bmatrix}\]</div>
+<h3>풀이</h3>
+<div class="math">\[1-r_{12}^2=1-0.1505=0.8495\]</div>
+<div class="math">\[\beta_1^*=\frac{r_{1y}-r_{12}r_{2y}}{1-r_{12}^2}=\frac{ 0.7325-0.3376 }{ 0.8495 }=\frac{ 0.3948 }{ 0.8495 }=0.4648\]</div>
+<div class="math">\[\beta_2^*=\frac{r_{2y}-r_{12}r_{1y}}{1-r_{12}^2}=\frac{ 0.8705-0.2841 }{ 0.8495 }=\frac{ 0.5863 }{ 0.8495 }=0.6902\]</div>
+<p>상관행렬의 역행렬로 써도 같습니다.</p>
+<div class="math">\[\boldsymbol\beta^*=R^{-1}\mathbf r_{xy},\qquad R^{-1}=\begin{bmatrix}1.1771&-0.4566\\-0.4566&1.1771\end{bmatrix}\]</div>
+<h3>결정계수도 상관계수로</h3>
+<div class="math">\[R^2=\beta_1^*r_{1y}+\beta_2^*r_{2y}=0.3404+0.6008=0.9412\]</div>
+<p>원자료에서 SSR/SST로 구한 값과 같습니다.</p>
+</section>
+
+<section id="s5">
+<h2><span class="n">5</span>원래 단위로 복원</h2>
+<p>표준화 계수에 \(s_y/s_{x_j}\)를 곱하면 원래 계수로 돌아옵니다.</p>
+<div class="math">\[b_1=\beta_1^*\cdot\frac{s_y}{s_{x_1}}=0.4648\times3.0782=1.4306,\qquad b_2=\beta_2^*\cdot\frac{s_y}{s_{x_2}}=0.6902\times3.5384=2.4422\]</div>
+<div class="math">\[b_0=\bar y-b_1\bar x_1-b_2\bar x_2=71.9-34.7648-21.0027=16.1325\]</div>
+<p>원자료로 직접 푼 회귀식과 소수점 넷째 자리까지 일치합니다. 두 풀이는 같은 식을 다른 단위로 적은 것일 뿐입니다.</p>
+</section>
+
+<section id="s6">
+<h2><span class="n">6</span>바뀌지 않는 값</h2>
+<h3>SSE와 R²</h3>
+<p>표준화 공간의 잔차는 원래 잔차를 \(s_y\)로 나눈 것이므로, SSE는 \(s_y^2\)배 차이만 납니다.</p>
+<div class="math">\[\text{SSE}^*=0.5290,\qquad \text{SSE}^*\times s_y^2=67.9984=\text{SSE}_{원자료}=67.9984\]</div>
+<p>R²는 SSE와 SST가 같은 비율로 커지거나 작아지므로 비율이 그대로입니다.</p>
+<h3>t값</h3>
+<p>계수와 표준오차가 똑같이 \(s_{x_j}/s_y\)배가 되므로 둘의 비율인 t값은 변하지 않습니다.</p>
+<div class="math">\[t_1=\frac{b_1}{\text{SE}(b_1)}=\frac{ 1.4306 }{ 0.3060 }=4.6750,\qquad t_1^*=\frac{\beta_1^*}{\text{SE}(\beta_1^*)}=\frac{ 0.4648 }{ 0.0994 }=4.6750\]</div>
+<div class="math">\[t_2=\frac{ 2.4422 }{ 0.3518 }=6.9423,\qquad t_2^*=\frac{ 0.6902 }{ 0.0994 }=6.9423\]</div>
+<p>t값이 같으니 p값과 유의성 판단도 같습니다. F값도 SSR과 SSE의 비율이라 그대로입니다.</p>
+</section>
+
+<section id="s7">
+<h2><span class="n">7</span>테스트 예측 비교</h2>
+<p>테스트 데이터는 <strong>학습 데이터의 평균·표준편차</strong>로 표준화하고, 예측한 뒤 점수 단위로 되돌립니다.</p>
+
+<div class='case'><h4>테스트 T1 — 출석 21일, 공부 7시간</h4><div class='math'>\[z_1=\frac{21-24.3}{3.6833}=-0.8959,\qquad z_2=\frac{7-8.6}{3.2042}=-0.4994\]</div><div class='math'>\[\hat z_y=0.4648\times(-0.8959)+0.6902\times(-0.4994)=-0.7611\]</div><div class='math'>\[\hat y=\hat z_y\cdot s_y+\bar y=-0.7611\times11.3377+71.9=63.2714\]</div></div>
+<div class='case'><h4>테스트 T2 — 출석 25일, 공부 10시간</h4><div class='math'>\[z_1=\frac{25-24.3}{3.6833}=0.1900,\qquad z_2=\frac{10-8.6}{3.2042}=0.4369\]</div><div class='math'>\[\hat z_y=0.4648\times(0.1900)+0.6902\times(0.4369)=0.3899\]</div><div class='math'>\[\hat y=\hat z_y\cdot s_y+\bar y=0.3899\times11.3377+71.9=76.3205\]</div></div>
+<div class='case'><h4>테스트 T3 — 출석 29일, 공부 13시간</h4><div class='math'>\[z_1=\frac{29-24.3}{3.6833}=1.2760,\qquad z_2=\frac{13-8.6}{3.2042}=1.3732\]</div><div class='math'>\[\hat z_y=0.4648\times(1.2760)+0.6902\times(1.3732)=1.5408\]</div><div class='math'>\[\hat y=\hat z_y\cdot s_y+\bar y=1.5408\times11.3377+71.9=89.3696\]</div></div>
+<div class="tbl"><table class="test">
+<thead><tr><th>테스트</th><th>실제 y</th><th>원자료 회귀 ŷ</th><th>표준화 회귀 ŷ</th><th>비교</th></tr></thead>
+<tbody>
+<tr><td>T1</td><td>66</td><td>63.2714</td><td>63.2714</td><td>일치</td></tr>
+<tr><td>T2</td><td>73</td><td>76.3205</td><td>76.3205</td><td>일치</td></tr>
+<tr><td>T3</td><td>92</td><td>89.3696</td><td>89.3696</td><td>일치</td></tr>
+</tbody></table></div>
+<p>예측이 같으므로 MAE 2.8932, RMSE 2.9092, 테스트 R² 0.9299도 모두 같습니다.</p>
+</section>
+
+<section id="s8">
+<h2><span class="n">8</span>변수 중요도 비교</h2>
+<p>표준화의 가장 실질적인 효과입니다. 원자료 계수는 "출석 1일당 1.4306점", "공부 1시간당 2.4422점"이라 단위가 달라서 크기를 직접 비교할 수 없습니다.</p>
+<figure>
+<svg class='wide' viewBox='0 0 720 170' role='img' aria-label='원자료 계수와 표준화 계수 비교'>
+<text x='0' y='24' class='ax'>원자료 계수 (단위가 다름)</text>
+<text x='0' y='63' class='lbl'>출석 1일</text><rect x='70' y='48' width='132.1' height='24' rx='3' class='barA'/><text x='208.1' y='65' class='lbl'>1.4306</text>
+<text x='0' y='121' class='lbl'>공부 1시간</text><rect x='70' y='106' width='225.4' height='24' rx='3' class='barA'/><text x='301.4' y='123' class='lbl'>2.4422</text>
+<text x='370' y='24' class='ax'>표준화 계수 (1 표준편차당)</text>
+<text x='370' y='63' class='lbl'>출석</text><rect x='440' y='48' width='148.7' height='24' rx='3' class='barB'/><text x='594.7' y='65' class='lbl'>0.4648</text>
+<text x='370' y='121' class='lbl'>공부</text><rect x='440' y='106' width='220.9' height='24' rx='3' class='barB'/><text x='666.9' y='123' class='lbl'>0.6902</text>
+</svg>
+<figcaption>표준화 계수는 "각 변수가 1 표준편차 변할 때 점수가 몇 표준편차 변하는가"로 단위가 같아 직접 비교할 수 있습니다.</figcaption>
+</figure>
+<h3>단위를 바꾸면 원자료 계수는 흔들린다</h3>
+<p>공부시간을 "시간" 대신 "분"으로 기록했다고 해 봅시다.</p>
+<div class="tbl"><table>
+<thead><tr><th>공부시간 단위</th><th>원자료 계수 b₂</th><th>표준편차 s_x₂</th><th>표준화 계수 β₂*</th></tr></thead>
+<tbody>
+<tr><td>시간</td><td>2.4422</td><td>3.2042</td><td>0.6902</td></tr>
+<tr><td>분</td><td>0.0407</td><td>192.25</td><td>0.6902</td></tr>
+</tbody></table></div>
+<p>원자료 계수만 보면 분 단위일 때 공부시간이 출석(1.4306)보다 훨씬 덜 중요해 보이지만, 표준화 계수는 단위와 무관하게 0.6902로 그대로입니다. 이번 데이터에서는 공부시간(0.6902)이 출석(0.4648)보다 점수에 더 큰 영향을 줍니다.</p>
+<div class="box">
+<p><strong>주의</strong> — 표준화 계수 비교는 설명변수끼리 상관이 약할 때 믿을 만합니다. 이번 데이터는 \(r_{12}=0.3879\)로 약한 편이라 해석해도 무리가 없지만, 다중공선성이 심하면 표준화 계수도 불안정해집니다.</p>
+</div>
+</section>
+
+<section id="s9">
+<h2><span class="n">9</span>수치 안정성</h2>
+<p>조건수는 행렬의 가장 큰 고유값과 가장 작은 고유값의 비율로, 클수록 역행렬 계산에서 반올림 오차가 크게 증폭됩니다.</p>
+<div class="math">\[\kappa(X^\top X)=33628.6\qquad\longrightarrow\qquad \kappa(R)=2.2674\]</div>
+<p>원자료의 \(X^\top X\)에는 10 같은 작은 값과 6027 같은 큰 값이 섞여 있어 조건수가 큽니다. 상관행렬은 모든 원소가 −1~1 사이라 조건수가 작습니다. 손계산에서는 소수점을 몇 자리까지 들고 가느냐에 따라 원자료 역행렬 결과가 흔들릴 수 있지만, 상관행렬 풀이는 반올림에 훨씬 덜 민감합니다.</p>
+</section>
+
+<section id="s10">
+<h2><span class="n">10</span>Python 검증</h2>
+<p>numpy와 statsmodels로 원자료 회귀와 표준화 회귀를 나란히 실행합니다.</p>
+<pre class="code">import numpy as np
+import statsmodels.api as sm
+
+# 학습 데이터 10개: [출석일수, 공부시간], 점수
+X = np.array([[18, 6], [20, 10], [22, 4], [23, 8], [24, 12],
+              [25, 5], [26, 9], [27, 14], [28, 7], [30, 11]], dtype=float)
+y = np.array([55, 72, 60, 65, 82, 61, 77, 85, 74, 88], dtype=float)
+X_test = np.array([[21, 7], [25, 10], [29, 13]], dtype=float)
+
+# 1) 원자료 회귀
+raw = sm.OLS(y, sm.add_constant(X)).fit()
+
+# 2) 표준화 회귀 (학습 데이터의 평균·표본표준편차 사용)
+mx, sx = X.mean(0), X.std(0, ddof=1)
+my, sy = y.mean(), y.std(ddof=1)
+Zx, zy = (X - mx) / sx, (y - my) / sy
+std = sm.OLS(zy, sm.add_constant(Zx)).fit()
+
+print("원자료 계수 b0,b1,b2 :", np.round(raw.params, 4))
+print("표준화 계수 b0*,b1*,b2*:", np.round(std.params, 4) + 0.0)
+print("상관행렬로 직접 계산   :", np.round(np.linalg.solve(np.corrcoef(X.T), np.corrcoef(X.T, y)[:2, 2]), 4))
+
+# 3) 표준화 계수 → 원래 단위로 복원
+b = std.params[1:] * sy / sx
+b0 = my - (b * mx).sum()
+print("복원한 b0,b1,b2       :", np.round([b0, *b], 4))
+
+# 4) 바뀌지 않는 값들
+print("R^2      원자료 / 표준화:", round(raw.rsquared, 4), round(std.rsquared, 4))
+print("F        원자료 / 표준화:", round(raw.fvalue, 4), round(std.fvalue, 4))
+print("t(b1,b2) 원자료 :", np.round(raw.tvalues[1:], 4))
+print("t(b1,b2) 표준화 :", np.round(std.tvalues[1:], 4))
+
+# 5) 테스트 예측: 표준화 공간에서 예측 후 되돌리기
+zt = (X_test - mx) / sx
+pred_std = std.predict(sm.add_constant(zt, has_constant="add")) * sy + my
+pred_raw = raw.predict(sm.add_constant(X_test, has_constant="add"))
+print("테스트 예측 원자료:", np.round(pred_raw, 4))
+print("테스트 예측 표준화:", np.round(pred_std, 4))
+
+# 6) 조건수 비교
+Xd = sm.add_constant(X)
+print("조건수 X'X  :", round(np.linalg.cond(Xd.T @ Xd), 1))
+print("조건수 상관행렬:", round(np.linalg.cond(np.corrcoef(X.T)), 4))
+</pre>
+<p class="cap">실행 결과</p>
+<pre class="out">원자료 계수 b0,b1,b2 : [16.1325  1.4306  2.4422]
+표준화 계수 b0*,b1*,b2*: [0.     0.4648 0.6902]
+상관행렬로 직접 계산   : [0.4648 0.6902]
+복원한 b0,b1,b2       : [16.1325  1.4306  2.4422]
+R^2      원자료 / 표준화: 0.9412 0.9412
+F        원자료 / 표준화: 56.0477 56.0477
+t(b1,b2) 원자료 : [4.675  6.9423]
+t(b1,b2) 표준화 : [4.675  6.9423]
+테스트 예측 원자료: [63.2714 76.3205 89.3696]
+테스트 예측 표준화: [63.2714 76.3205 89.3696]
+조건수 X'X  : 33628.6
+조건수 상관행렬: 2.2674
+</pre>
+</section>
+
+<section id="s11">
+<h2><span class="n">11</span>언제 표준화할까</h2>
+<div class="tbl"><table>
+<thead><tr><th>상황</th><th>표준화</th><th style="text-align:left">이유</th></tr></thead>
+<tbody>
+<tr><td>예측값만 필요</td><td>불필요</td><td style="text-align:left">결과가 같고 원자료 풀이가 더 간단</td></tr>
+<tr><td>"어느 변수가 더 중요한가"</td><td>필요</td><td style="text-align:left">표준화 계수라야 단위 없이 비교 가능</td></tr>
+<tr><td>문제에 상관계수만 주어짐</td><td>유리</td><td style="text-align:left">β* 공식에 바로 대입</td></tr>
+<tr><td>변수 크기 차이가 매우 큼</td><td>유리</td><td style="text-align:left">조건수가 줄어 반올림 오차 감소</td></tr>
+<tr><td>Ridge, Lasso</td><td>필수</td><td style="text-align:left">벌점이 계수 크기에 걸려 단위에 따라 결과가 달라짐</td></tr>
+<tr><td>경사하강법, MLP</td><td>필수에 가까움</td><td style="text-align:left">학습 속도와 안정성에 직접 영향</td></tr>
+</tbody></table></div>
+<p>손계산 자체는 쉬워지지 않습니다. 편차 풀이도 이미 2×2 문제였고, 표준화는 상관계수를 구하는 제곱근 계산이 더해질 뿐입니다. 표준화의 가치는 계산의 편의가 아니라 계수를 비교 가능한 척도로 바꿔 준다는 데 있습니다.</p>
+</section>
+</main>
+</div>
+<button class="theme-btn" type="button" id="themeBtn">테마 전환</button>
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('nav.side a'));
+  var secs=links.map(function(a){return document.querySelector(a.getAttribute('href'));});
+  function spy(){
+    var y=window.scrollY+120, cur=0;
+    secs.forEach(function(s,i){ if(s && s.offsetTop<=y) cur=i; });
+    links.forEach(function(a,i){ a.classList.toggle('on', i===cur); });
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  try{ var saved=localStorage.getItem('stdreg-theme'); if(saved) root.setAttribute('data-theme',saved); }catch(e){}
+  btn.addEventListener('click',function(){
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme')==='dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var next = dark ? 'light' : 'dark'; root.setAttribute('data-theme',next);
+    try{ localStorage.setItem('stdreg-theme',next); }catch(e){}
+  });
+})();
+</script>
+</body>
+</html>
