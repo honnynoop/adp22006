@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI 히스토리 연표</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@500;700;900&family=Noto+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f3ece0; --paper:#fbf7ef; --ink:#2b2620; --muted:#7a6f60; --line:#dcd1bd; --soft:#efe6d6;
+  --c-ai:#b5543c; --c-ml:#b8862a; --c-dl:#2f7a68; --c-llm:#5a58a8;
+  --winter:#9aa3ad; --hl:#fff2c4;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#1d1a16; --paper:#26221d; --ink:#ece4d6; --muted:#a89c8a; --line:#3d362d; --soft:#2e2923;
+    --c-ai:#e07a5f; --c-ml:#e0b04f; --c-dl:#5fb8a2; --c-llm:#9b98e8; --winter:#6b7480; --hl:#4a3f1f; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Noto Sans KR',system-ui,sans-serif;line-height:1.65;font-size:15px}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 16px 80px}
+header{border-bottom:2px solid var(--ink);padding-bottom:24px;margin-bottom:36px}
+.kicker{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.15em;color:var(--muted);text-transform:uppercase}
+h1{font-family:'Noto Serif KR',serif;font-weight:900;font-size:clamp(30px,5vw,48px);margin:6px 0 10px;line-height:1.2}
+h2{font-family:'Noto Serif KR',serif;font-size:24px;margin:0 0 6px;display:flex;align-items:baseline;gap:12px}
+h2 .no{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--muted);font-weight:400}
+.lead{color:var(--muted);max-width:760px;margin:0}
+section{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:28px 24px;margin-bottom:28px;box-shadow:0 1px 0 var(--line)}
+section > p.desc{color:var(--muted);margin:0 0 18px;font-size:14px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin-top:16px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line);border-radius:4px;background:var(--bg)}
+svg text{font-family:'Noto Sans KR',sans-serif;fill:var(--ink)}
+svg .mono{font-family:'JetBrains Mono',monospace}
+.ev{cursor:pointer;transition:r .15s}
+.ev:hover{stroke:var(--ink);stroke-width:2}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--paper);padding:10px 12px;border-radius:4px;font-size:13px;max-width:320px;opacity:0;transition:opacity .12s;z-index:50;line-height:1.5}
+#tip b{display:block;font-size:14px;margin-bottom:2px}
+#tip .y{font-family:'JetBrains Mono',monospace;font-size:11px;opacity:.75}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:'Noto Serif KR',serif;font-size:13px;color:var(--muted);font-weight:700;background:var(--soft);position:sticky;top:0}
+td.yr{font-family:'JetBrains Mono',monospace;white-space:nowrap;font-weight:600}
+td.who{color:var(--muted);font-size:13px}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;color:#fff;white-space:nowrap}
+.star{color:var(--c-ai);font-size:12px}
+tr.hl td{background:var(--hl)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:6px 14px;border-radius:20px;font:inherit;font-size:13px;cursor:pointer}
+.chip.on{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+input[type=search]{flex:1;min-width:180px;padding:8px 12px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--ink);font:inherit;font-size:14px}
+label.tg{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+.count{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);margin-left:auto}
+.tablewrap{max-height:720px;overflow:auto;border:1px solid var(--line);border-radius:4px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+@media (max-width:820px){.grid2{grid-template-columns:1fr} section{padding:20px 14px}}
+.note{font-size:12px;color:var(--muted);margin-top:10px}
+footer{color:var(--muted);font-size:12px;text-align:center;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="kicker">A History of Artificial Intelligence · 1943 — 2026</div>
+  <h1>AI 히스토리: 인공 뉴런에서 LLM 에이전트까지</h1>
+  <p class="lead">AI 일반(기호주의·게임·로봇·정책), 머신러닝, 딥러닝, 대규모 언어모델(LLM)의 네 갈래로 80여 년의 흐름을 정리했습니다. 그래프의 점에 마우스를 올리면 설명이, 클릭하면 아래 연표 표의 해당 행으로 이동합니다.</p>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--c-ai)"></i>AI 일반</span>
+    <span><i class="dot" style="background:var(--c-ml)"></i>머신러닝 (ML)</span>
+    <span><i class="dot" style="background:var(--c-dl)"></i>딥러닝 (DL)</span>
+    <span><i class="dot" style="background:var(--c-llm)"></i>LLM · NLP</span>
+    <span><i class="dot" style="background:var(--winter)"></i>AI 겨울</span>
+  </div>
+</header>
+
+<section>
+  <h2><span class="no">01</span>개념 지도 — AI ⊃ ML ⊃ DL ⊃ LLM</h2>
+  <p class="desc">네 용어는 서로 경쟁 관계가 아니라 포함 관계입니다. 바깥으로 갈수록 범위가 넓고, 안쪽으로 갈수록 최근에 주류가 된 접근입니다.</p>
+  <div class="scroll"><svg viewBox="0 0 820 430" style="width:100%;min-width:640px;display:block">
+    <rect x="16" y="16" width="788" height="398" rx="18" style="fill:var(--c-ai);fill-opacity:.10;stroke:var(--c-ai);stroke-width:2"/>
+    <text x="40" y="50" style="font-weight:700;font-size:20px;fill:var(--c-ai)">AI · 인공지능 <tspan class="mono" style="font-size:12px;fill:var(--muted)">1956~</tspan></text>
+    <text x="40" y="72" style="font-size:13px;fill:var(--muted)">인간의 지능적 행동을 기계로 구현 — 탐색, 논리 추론, 규칙 기반 전문가 시스템, 계획, 게임 AI</text>
+    <rect x="60" y="92" width="700" height="306" rx="16" style="fill:var(--c-ml);fill-opacity:.12;stroke:var(--c-ml);stroke-width:2"/>
+    <text x="84" y="124" style="font-weight:700;font-size:19px;fill:var(--c-ml)">ML · 머신러닝 <tspan class="mono" style="font-size:12px;fill:var(--muted)">1959~</tspan></text>
+    <text x="84" y="146" style="font-size:13px;fill:var(--muted)">규칙을 사람이 짜는 대신 데이터에서 학습 — 회귀, 결정트리, SVM, 랜덤포레스트, XGBoost, 강화학습</text>
+    <rect x="104" y="166" width="612" height="216" rx="14" style="fill:var(--c-dl);fill-opacity:.13;stroke:var(--c-dl);stroke-width:2"/>
+    <text x="128" y="198" style="font-weight:700;font-size:18px;fill:var(--c-dl)">DL · 딥러닝 <tspan class="mono" style="font-size:12px;fill:var(--muted)">2006~ (뿌리 1943)</tspan></text>
+    <text x="128" y="220" style="font-size:13px;fill:var(--muted)">다층 신경망이 특징(표현)까지 스스로 학습 — CNN, RNN/LSTM, GAN, VAE, 확산모델, ViT</text>
+    <rect x="148" y="240" width="524" height="126" rx="12" style="fill:var(--c-llm);fill-opacity:.16;stroke:var(--c-llm);stroke-width:2"/>
+    <text x="172" y="272" style="font-weight:700;font-size:18px;fill:var(--c-llm)">LLM · 대규모 언어모델 <tspan class="mono" style="font-size:12px;fill:var(--muted)">2018~</tspan></text>
+    <text x="172" y="294" style="font-size:13px;fill:var(--muted)">트랜스포머 기반, 방대한 텍스트로 사전학습 → 지시 튜닝·RLHF → 추론·도구 사용</text>
+    <text x="172" y="322" style="font-size:13px;fill:var(--ink)">GPT · BERT · Claude · Gemini · LLaMA · DeepSeek · HyperCLOVA</text>
+    <text x="172" y="346" style="font-size:12px;fill:var(--muted)">→ 멀티모달 · 추론 모델 · 코딩 에이전트로 확장</text>
+  </svg></div>
+</section>
+
+<section>
+  <h2><span class="no">02</span>연표 그래프 — 네 갈래의 흐름</h2>
+  <p class="desc">배경 띠는 시대 구분, 회색 띠는 AI 겨울입니다. 사건이 몰린 2005년 이후 구간은 가로로 확대했습니다(점선 기준). 큰 점은 핵심 사건입니다.</p>
+  <div class="scroll"><svg id="tl" style="display:block;min-width:1300px;width:100%"></svg></div>
+</section>
+
+<section>
+  <h2><span class="no">03</span>시대 구분 표</h2>
+  <p class="desc">붐과 겨울이 반복되며, 매번 "계산 자원·데이터·알고리즘" 중 하나의 돌파가 다음 시대를 열었습니다.</p>
+  <div class="tablewrap" style="max-height:none"><table id="eraTable">
+    <thead><tr><th>기간</th><th>시대</th><th>주류 패러다임</th><th>대표 기술·사건</th><th>전환점 / 한계</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<div class="grid2">
+<section style="margin-bottom:28px">
+  <h2><span class="no">04</span>모델 파라미터 수의 증가</h2>
+  <p class="desc">로그 스케일. 25년 사이 약 10<sup>7</sup>배(천만 배) 커졌습니다.</p>
+  <div class="scroll"><svg id="params" style="display:block;width:100%;min-width:520px"></svg></div>
+  <p class="note">공개된 수치만 표기. GPT-4 이후 다수의 최신 상용 모델은 규모를 공개하지 않습니다. DeepSeek-V3·Kimi K2는 MoE 구조라 토큰당 활성 파라미터는 일부(각각 37B, 32B)입니다.</p>
+</section>
+<section style="margin-bottom:28px">
+  <h2><span class="no">05</span>10년 단위 주요 사건 수</h2>
+  <p class="desc">이 연표에 수록한 사건 기준. 2010년대 이후 딥러닝·LLM이 폭발적으로 늘어납니다.</p>
+  <div class="scroll"><svg id="decades" style="display:block;width:100%;min-width:520px"></svg></div>
+</section>
+</div>
+
+<section>
+  <h2><span class="no">06</span>전체 연표 표</h2>
+  <p class="desc">분류 필터·검색·핵심 사건만 보기를 지원합니다. 연도 머리글을 누르면 정렬 순서가 바뀝니다.</p>
+  <div class="controls" id="chips">
+    <button class="chip on" data-c="ALL">전체</button>
+    <button class="chip" data-c="AI">AI 일반</button>
+    <button class="chip" data-c="ML">ML</button>
+    <button class="chip" data-c="DL">DL</button>
+    <button class="chip" data-c="LLM">LLM</button>
+    <input type="search" id="q" placeholder="검색: 예) Hinton, 트랜스포머, 강화학습">
+    <label class="tg"><input type="checkbox" id="keyOnly"> 핵심만 ★</label>
+    <span class="count" id="cnt"></span>
+  </div>
+  <div class="tablewrap"><table id="evTable">
+    <thead><tr><th id="thYear" style="cursor:pointer">연도 ↕</th><th>분류</th><th>사건</th><th>인물·기관</th><th>의의</th></tr></thead>
+    <tbody></tbody>
+  </table></div>
+</section>
+
+<footer>AI History · 1943–2026 · 마우스 오버/클릭으로 탐색 · 단일 HTML 파일</footer>
+</div>
+<div id="tip"></div>
+
+<script>
+const CAT = {
+  AI:{n:'AI 일반',c:'var(--c-ai)'}, ML:{n:'ML',c:'var(--c-ml)'},
+  DL:{n:'DL',c:'var(--c-dl)'}, LLM:{n:'LLM',c:'var(--c-llm)'}
+};
+// y: 연도(소수=월 반영), s: 그래프 라벨(있으면 핵심 사건)
+const EV = [
+ {y:1943,c:'DL',s:'인공 뉴런',t:'McCulloch–Pitts 뉴런 모델',w:'Warren McCulloch, Walter Pitts',d:'뉴런을 논리 게이트로 수학화한 최초의 인공 뉴런 모델. 신경망의 출발점.'},
+ {y:1949,c:'DL',t:'헵 학습 규칙',w:'Donald Hebb',d:'"함께 발화하는 뉴런은 연결이 강화된다" — 신경망 학습 규칙의 원형.'},
+ {y:1950,c:'AI',s:'튜링 테스트',t:'「Computing Machinery and Intelligence」',w:'Alan Turing',d:'"기계는 생각할 수 있는가?" — 모방 게임(튜링 테스트) 제안.'},
+ {y:1956.5,c:'AI',s:'다트머스 회의',t:'다트머스 회의 — "Artificial Intelligence" 탄생',w:'John McCarthy, Marvin Minsky, Claude Shannon 등',d:'AI라는 용어가 공식적으로 쓰이며 하나의 학문 분야로 출범.'},
+ {y:1956.8,c:'AI',t:'Logic Theorist',w:'Allen Newell, Herbert Simon, Cliff Shaw',d:'수학 정리를 증명한 최초의 AI 프로그램으로 불림. 기호주의 AI의 시작.'},
+ {y:1958.3,c:'DL',s:'퍼셉트론',t:'퍼셉트론(Perceptron)',w:'Frank Rosenblatt',d:'학습 가능한 단층 신경망. 하드웨어(Mark I)로 구현되며 큰 기대를 모음.'},
+ {y:1958.8,c:'AI',t:'LISP 언어',w:'John McCarthy',d:'이후 수십 년간 AI 연구의 표준 언어가 됨.'},
+ {y:1959,c:'ML',s:'ML 용어',t:'"Machine Learning" 용어 등장',w:'Arthur Samuel (IBM)',d:'스스로 실력이 느는 체커 프로그램과 함께 머신러닝 개념을 정의.'},
+ {y:1966,c:'AI',s:'ELIZA',t:'ELIZA 챗봇',w:'Joseph Weizenbaum (MIT)',d:'패턴 매칭으로 상담사를 흉내 낸 최초의 챗봇. 사람들이 기계에 감정 이입하는 "ELIZA 효과".'},
+ {y:1966.6,c:'AI',t:'Shakey 로봇',w:'SRI',d:'인지·계획·행동을 통합한 최초의 범용 이동 로봇. A* 탐색 알고리즘이 여기서 탄생.'},
+ {y:1967,c:'ML',t:'k-최근접 이웃(k-NN)',w:'Thomas Cover, Peter Hart',d:'가장 단순하면서도 강력한 비모수 분류 기법의 이론적 정립.'},
+ {y:1969,c:'DL',t:'『Perceptrons』 출간',w:'Marvin Minsky, Seymour Papert',d:'단층 퍼셉트론이 XOR을 풀 수 없음을 증명 → 신경망 연구 장기 침체.'},
+ {y:1972,c:'AI',t:'Prolog',w:'Alain Colmerauer',d:'논리 프로그래밍 언어. 기호주의·전문가 시스템의 핵심 도구.'},
+ {y:1973,c:'AI',s:'1차 겨울',t:'라이트힐 보고서 → 1차 AI 겨울',w:'James Lighthill (영국)',d:'AI가 약속을 지키지 못했다는 평가로 영·미 연구비 대폭 삭감.'},
+ {y:1980,c:'AI',s:'전문가 시스템',t:'XCON(R1) 상용화 — 전문가 시스템 붐',w:'DEC, CMU',d:'규칙 기반 전문가 시스템이 실제 비용 절감 효과를 내며 산업적 AI 붐.'},
+ {y:1980.5,c:'DL',t:'Neocognitron',w:'Kunihiko Fukushima',d:'시각 피질을 모사한 계층 신경망. CNN의 직계 조상.'},
+ {y:1982,c:'DL',t:'Hopfield 네트워크',w:'John Hopfield',d:'에너지 기반 연상 기억 신경망. 신경망 연구 재점화(2024 노벨 물리학상).'},
+ {y:1982.5,c:'AI',t:'일본 5세대 컴퓨터 프로젝트',w:'일본 통상산업성',d:'논리 추론 기반 차세대 컴퓨터 국책 사업. 세계적 AI 투자 경쟁 촉발.'},
+ {y:1984,c:'ML',t:'CART 결정트리',w:'Leo Breiman 외',d:'분류·회귀 트리 방법론 체계화.'},
+ {y:1986.2,c:'ML',t:'ID3 결정트리',w:'Ross Quinlan',d:'정보 이득 기반 결정트리. 이후 C4.5로 발전.'},
+ {y:1986.8,c:'DL',s:'역전파',t:'역전파(Backpropagation) 알고리즘 보급',w:'David Rumelhart, Geoffrey Hinton, Ronald Williams',d:'다층 신경망을 학습시키는 방법을 Nature에 발표 → XOR 한계 극복.'},
+ {y:1987,c:'AI',s:'2차 겨울',t:'LISP 머신 시장 붕괴 → 2차 AI 겨울',w:'—',d:'전문가 시스템의 유지보수 비용·취약성 문제로 시장 붕괴, 투자 급감.'},
+ {y:1989,c:'DL',t:'CNN으로 손글씨 우편번호 인식',w:'Yann LeCun (Bell Labs)',d:'역전파로 학습한 합성곱 신경망의 실용화.'},
+ {y:1989.5,c:'ML',t:'Q-learning',w:'Chris Watkins',d:'모델 없이 가치를 학습하는 강화학습 알고리즘. 훗날 DQN의 기반.'},
+ {y:1992,c:'ML',t:'TD-Gammon',w:'Gerald Tesauro (IBM)',d:'강화학습+신경망으로 백개먼 최상위 수준 도달.'},
+ {y:1995,c:'ML',s:'SVM',t:'서포트 벡터 머신(SVM)',w:'Corinna Cortes, Vladimir Vapnik',d:'커널 트릭과 마진 최대화. 2000년대 ML의 대표 알고리즘.'},
+ {y:1995.6,c:'ML',t:'AdaBoost',w:'Yoav Freund, Robert Schapire',d:'약한 학습기를 결합하는 부스팅의 시작.'},
+ {y:1997.4,c:'AI',s:'Deep Blue',t:'Deep Blue, 카스파로프 격파',w:'IBM',d:'체스 세계 챔피언을 이긴 최초의 컴퓨터. 탐색 기반 AI의 정점.'},
+ {y:1997.8,c:'DL',s:'LSTM',t:'LSTM',w:'Sepp Hochreiter, Jürgen Schmidhuber',d:'기울기 소실을 해결한 순환 신경망. 2010년대 음성·번역의 주력.'},
+ {y:1998,c:'DL',t:'LeNet-5',w:'Yann LeCun 외',d:'현대 CNN 구조의 원형. 은행 수표 인식에 실사용.'},
+ {y:2001,c:'ML',s:'Random Forest',t:'랜덤 포레스트',w:'Leo Breiman',d:'배깅+무작위 특징 선택 앙상블. 지금도 정형 데이터의 강자.'},
+ {y:2001.5,c:'ML',t:'Gradient Boosting Machine',w:'Jerome Friedman',d:'경사하강 기반 부스팅. XGBoost·LightGBM의 이론적 토대.'},
+ {y:2003,c:'LLM',t:'신경망 언어모델',w:'Yoshua Bengio 외',d:'단어 임베딩과 신경망으로 다음 단어를 예측 — 신경망 언어모델의 시작.'},
+ {y:2005.8,c:'AI',t:'DARPA Grand Challenge 우승',w:'Stanford "Stanley"',d:'사막 212km 자율주행 완주. 자율주행 연구 본격화.'},
+ {y:2006,c:'DL',s:'딥러닝 부활',t:'Deep Belief Network',w:'Geoffrey Hinton 외',d:'층별 사전학습으로 깊은 신경망 학습에 성공. "딥러닝"이라는 이름으로 부활.'},
+ {y:2006.8,c:'ML',t:'Netflix Prize 시작',w:'Netflix',d:'추천 정확도 10% 개선에 100만 달러. 협업 필터링·앙상블 연구 붐.'},
+ {y:2007.5,c:'DL',t:'CUDA 공개',w:'NVIDIA',d:'GPU 범용 연산 플랫폼. 딥러닝 학습 가속의 하드웨어 기반.'},
+ {y:2009.5,c:'DL',t:'ImageNet 데이터셋',w:'Fei-Fei Li 외',d:'1,400만 장 규모 이미지 데이터셋. 대규모 데이터의 중요성 입증.'},
+ {y:2010.3,c:'ML',t:'scikit-learn 첫 공개',w:'INRIA 등 오픈소스 커뮤니티',d:'파이썬 ML 표준 라이브러리. ML의 대중화.'},
+ {y:2011.15,c:'AI',s:'Watson',t:'IBM Watson, 제퍼디! 우승',w:'IBM',d:'자연어 질의응답으로 퀴즈쇼 챔피언을 이김.'},
+ {y:2011.8,c:'AI',t:'Siri 출시',w:'Apple',d:'스마트폰 음성 비서의 대중화.'},
+ {y:2012.75,c:'DL',s:'AlexNet',t:'AlexNet — ImageNet 압승',w:'Alex Krizhevsky, Ilya Sutskever, Geoffrey Hinton',d:'GPU로 학습한 CNN이 top-5 오류율을 26%→15%로 낮춤. 딥러닝 혁명의 신호탄.'},
+ {y:2013.05,c:'LLM',s:'word2vec',t:'word2vec',w:'Tomas Mikolov 외 (Google)',d:'단어를 의미 벡터로 표현 ("왕 − 남자 + 여자 ≈ 여왕"). NLP 임베딩 시대.'},
+ {y:2013.9,c:'ML',s:'DQN',t:'DQN — 아타리 게임 학습',w:'DeepMind',d:'딥러닝+Q-learning(심층 강화학습). 픽셀만 보고 게임을 학습.'},
+ {y:2013.95,c:'DL',t:'VAE (변분 오토인코더)',w:'Diederik Kingma, Max Welling',d:'확률적 생성 모델의 대표 구조.'},
+ {y:2014.45,c:'DL',s:'GAN',t:'GAN (생성적 적대 신경망)',w:'Ian Goodfellow 외',d:'생성자와 판별자의 경쟁으로 사실적 이미지 생성. 생성 AI의 기폭제.'},
+ {y:2014.7,c:'LLM',t:'Seq2Seq & 어텐션',w:'Ilya Sutskever 외 / Dzmitry Bahdanau 외',d:'인코더-디코더 번역 모델과 어텐션 메커니즘 등장 → 트랜스포머의 전신.'},
+ {y:2014.95,c:'DL',t:'Adam 옵티마이저',w:'Diederik Kingma, Jimmy Ba',d:'지금까지도 가장 널리 쓰이는 최적화 알고리즘.'},
+ {y:2015.15,c:'DL',t:'Batch Normalization',w:'Sergey Ioffe, Christian Szegedy',d:'깊은 망 학습을 안정·가속화.'},
+ {y:2015.85,c:'DL',t:'TensorFlow 오픈소스 공개',w:'Google',d:'딥러닝 프레임워크 대중화.'},
+ {y:2015.95,c:'DL',s:'ResNet',t:'ResNet',w:'Kaiming He 외 (Microsoft Research)',d:'잔차 연결로 152층 학습. ImageNet에서 인간 수준 오류율 돌파.'},
+ {y:2015.97,c:'AI',t:'OpenAI 설립',w:'Sam Altman, Elon Musk, Ilya Sutskever 등',d:'비영리 AI 연구소로 출범.'},
+ {y:2016.2,c:'AI',s:'AlphaGo',t:'AlphaGo vs 이세돌 (4:1)',w:'Google DeepMind',d:'서울에서 열린 대국. 바둑 최정상 기사를 꺾으며 한국에 AI 열풍.'},
+ {y:2016.6,c:'ML',t:'XGBoost 논문',w:'Tianqi Chen, Carlos Guestrin',d:'정형 데이터·Kaggle을 평정한 그래디언트 부스팅 구현.'},
+ {y:2017.05,c:'DL',t:'PyTorch 공개',w:'Facebook AI Research',d:'동적 그래프 프레임워크. 연구계 표준으로 자리 잡음.'},
+ {y:2017.45,c:'LLM',s:'Transformer',t:'Transformer — "Attention Is All You Need"',w:'Ashish Vaswani 외 (Google)',d:'순환 구조 없이 셀프 어텐션만으로 병렬 학습. 모든 LLM의 기반 아키텍처.'},
+ {y:2017.55,c:'ML',t:'PPO',w:'John Schulman 외 (OpenAI)',d:'안정적인 정책 경사 강화학습. 훗날 RLHF의 핵심 알고리즘.'},
+ {y:2017.9,c:'AI',t:'AlphaZero',w:'DeepMind',d:'인간 기보 없이 자기 대국만으로 바둑·체스·쇼기 정복.'},
+ {y:2018.45,c:'LLM',t:'GPT-1',w:'OpenAI',d:'생성적 사전학습 + 미세조정 패러다임 제시 (1.17억 파라미터).'},
+ {y:2018.8,c:'LLM',s:'BERT',t:'BERT',w:'Google',d:'양방향 인코더 사전학습. NLP 벤치마크 대부분을 갈아치움.'},
+ {y:2019.15,c:'LLM',t:'GPT-2',w:'OpenAI',d:'15억 파라미터. "위험할 수 있다"며 단계적 공개 — AI 안전 논의 촉발.'},
+ {y:2019.25,c:'DL',t:'튜링상 — 딥러닝 3대 거장',w:'Geoffrey Hinton, Yann LeCun, Yoshua Bengio',d:'딥러닝의 개념적·공학적 돌파 공로로 수상.'},
+ {y:2020.05,c:'LLM',t:'Scaling Laws',w:'Jared Kaplan 외 (OpenAI)',d:'모델·데이터·연산량을 키우면 성능이 멱법칙으로 예측 가능하게 향상됨을 보임.'},
+ {y:2020.4,c:'LLM',s:'GPT-3',t:'GPT-3 (1,750억 파라미터)',w:'OpenAI',d:'예시 몇 개만으로 과제를 수행하는 인컨텍스트 학습(few-shot) 능력.'},
+ {y:2020.45,c:'DL',t:'DDPM (확산 모델)',w:'Jonathan Ho 외',d:'노이즈 제거로 이미지를 생성하는 확산 모델 — 이후 이미지 생성의 표준.'},
+ {y:2020.8,c:'DL',t:'Vision Transformer (ViT)',w:'Google',d:'트랜스포머를 이미지에 적용, CNN 독주 체제를 흔듦.'},
+ {y:2020.9,c:'AI',s:'AlphaFold2',t:'AlphaFold 2',w:'DeepMind (Demis Hassabis, John Jumper)',d:'단백질 구조 예측 50년 난제 해결 (CASP14). 2024 노벨 화학상.'},
+ {y:2021.05,c:'DL',s:'CLIP',t:'CLIP & DALL·E',w:'OpenAI',d:'텍스트-이미지 공동 임베딩, 텍스트로 이미지 생성. 멀티모달 시대.'},
+ {y:2021.2,c:'AI',t:'Anthropic 설립',w:'Dario Amodei, Daniela Amodei 외',d:'AI 안전 연구에 초점을 둔 연구 기업. 이후 Claude 개발.'},
+ {y:2021.4,c:'LLM',t:'HyperCLOVA',w:'NAVER',d:'한국어 중심 초거대 언어모델 공개.'},
+ {y:2021.5,c:'LLM',t:'Codex & GitHub Copilot',w:'OpenAI, GitHub',d:'코드 생성 LLM. AI 페어 프로그래밍의 시작.'},
+ {y:2022.2,c:'LLM',t:'InstructGPT (RLHF) & Chinchilla',w:'OpenAI / DeepMind',d:'인간 피드백 강화학습으로 지시 따르기 향상 / 데이터 대비 최적 모델 크기 법칙.'},
+ {y:2022.6,c:'DL',s:'Stable Diffusion',t:'Stable Diffusion 오픈소스 공개',w:'Stability AI, LMU 뮌헨 등',d:'누구나 로컬에서 쓰는 이미지 생성 AI. 생성 AI 대중화.'},
+ {y:2022.92,c:'LLM',s:'ChatGPT',t:'ChatGPT 출시 (11/30)',w:'OpenAI',d:'두 달 만에 사용자 1억 명. 생성형 AI 시대 개막.'},
+ {y:2023.15,c:'LLM',t:'LLaMA',w:'Meta',d:'고성능 오픈 웨이트 모델 → 오픈소스 LLM 생태계 폭발.'},
+ {y:2023.2,c:'LLM',s:'GPT-4',t:'GPT-4 · Claude 공개',w:'OpenAI / Anthropic',d:'멀티모달 입력, 전문 시험 상위권 성능. 같은 달 Anthropic이 Claude 공개.'},
+ {y:2023.95,c:'LLM',t:'Gemini',w:'Google DeepMind',d:'네이티브 멀티모달 모델 계열.'},
+ {y:2024.13,c:'DL',t:'Sora 공개',w:'OpenAI',d:'텍스트로 고품질 동영상 생성.'},
+ {y:2024.2,c:'LLM',t:'Claude 3 계열',w:'Anthropic',d:'Haiku·Sonnet·Opus 3단 구성의 모델 패밀리.'},
+ {y:2024.37,c:'LLM',t:'GPT-4o',w:'OpenAI',d:'음성·이미지·텍스트를 실시간 처리하는 옴니 모델.'},
+ {y:2024.6,c:'AI',t:'EU AI Act 발효',w:'유럽연합',d:'세계 최초의 포괄적 AI 규제법. 위험 등급별 의무 부과.'},
+ {y:2024.7,c:'LLM',s:'o1 추론',t:'o1 — 추론 모델',w:'OpenAI',d:'답하기 전에 길게 "생각"하는 테스트 타임 연산 확장. 추론 모델 경쟁 시작.'},
+ {y:2024.78,c:'AI',s:'AI 노벨상',t:'노벨 물리학상·화학상을 AI 연구자가 수상',w:'Hopfield·Hinton / Hassabis·Jumper·Baker',d:'신경망 기초 연구와 단백질 구조 예측 AI가 노벨상을 받음.'},
+ {y:2024.9,c:'LLM',t:'MCP (Model Context Protocol)',w:'Anthropic',d:'LLM과 외부 도구·데이터를 잇는 개방형 표준. 에이전트 생태계 기반.'},
+ {y:2024.97,c:'LLM',t:'DeepSeek-V3',w:'DeepSeek',d:'6,710억 파라미터 MoE. 낮은 학습 비용으로 최상위권 성능.'},
+ {y:2025.05,c:'LLM',s:'DeepSeek-R1',t:'DeepSeek-R1',w:'DeepSeek',d:'강화학습으로 추론 능력을 끌어낸 오픈 웨이트 추론 모델. 업계·시장에 큰 충격.'},
+ {y:2025.15,c:'LLM',t:'Claude 3.7 Sonnet & Claude Code',w:'Anthropic',d:'하이브리드 추론 모델과 터미널 기반 코딩 에이전트 공개.'},
+ {y:2025.4,c:'LLM',t:'Claude 4 (Opus 4 · Sonnet 4)',w:'Anthropic',d:'장시간 자율 코딩·에이전트 작업에 초점.'},
+ {y:2025.6,c:'LLM',s:'GPT-5',t:'GPT-5',w:'OpenAI',d:'추론 모드를 통합한 플래그십 모델.'},
+ {y:2026.05,c:'AI',t:'한국 AI 기본법 시행',w:'대한민국',d:'고영향 AI·생성형 AI 표시 의무 등을 담은 국내 최초 AI 기본법.'},
+ {y:2026.44,c:'LLM',s:'Claude Mythos 5',t:'Claude Mythos 5 · Fable 5 출시',w:'Anthropic',d:'Opus 위의 Mythos 등급 모델 공개. 앞서 Project Glasswing으로 일부 기관에만 제공되던 Mythos Preview의 후속.'}
+];
+const ERAS = [
+ {s:1943,e:1956,n:'태동기',sh:'태동',col:'var(--c-dl)',p:'계산 이론·인공 뉴런',k:'McCulloch–Pitts 뉴런, 튜링 테스트, 헵 규칙',x:'다트머스 회의로 독립 학문화'},
+ {s:1956,e:1974,n:'황금기',sh:'황금기',col:'var(--c-ai)',p:'기호주의 AI (탐색·논리)',k:'Logic Theorist, LISP, 퍼셉트론, ELIZA, Shakey',x:'과도한 낙관 → 조합 폭발, 퍼셉트론 한계 증명'},
+ {s:1974,e:1980,n:'1차 AI 겨울',sh:'1차 겨울',col:'var(--winter)',w:1,p:'—',k:'라이트힐 보고서, DARPA 예산 삭감',x:'전문가 시스템이라는 실용 노선으로 회복'},
+ {s:1980,e:1987,n:'전문가 시스템 붐',sh:'전문가',col:'var(--c-ai)',p:'지식 기반 규칙 시스템',k:'XCON, 일본 5세대 컴퓨터, 역전파·Hopfield',x:'지식 획득 병목, 유지보수 비용, LISP 머신 붕괴'},
+ {s:1987,e:1993,n:'2차 AI 겨울',sh:'2차 겨울',col:'var(--winter)',w:1,p:'—',k:'전문가 시스템 시장 붕괴, 투자 급감',x:'확률·통계 기반 접근으로 이동'},
+ {s:1993,e:2012,n:'통계적 머신러닝',sh:'통계적 ML',col:'var(--c-ml)',p:'데이터 기반 학습 (얕은 모델 + 특징 공학)',k:'SVM, 랜덤 포레스트, 부스팅, Deep Blue, LSTM',x:'GPU·빅데이터(ImageNet)가 깊은 신경망 학습을 가능케 함'},
+ {s:2012,e:2017,n:'딥러닝 혁명',sh:'딥러닝 혁명',col:'var(--c-dl)',p:'심층 신경망 (표현 학습)',k:'AlexNet, word2vec, GAN, ResNet, AlphaGo',x:'RNN의 순차 처리 한계 → 트랜스포머 등장'},
+ {s:2017,e:2022.9,n:'트랜스포머·사전학습',sh:'트랜스포머',col:'var(--c-llm)',p:'대규모 사전학습 + 미세조정',k:'Transformer, BERT, GPT-3, AlphaFold2, 확산 모델',x:'RLHF로 대화형 인터페이스 완성 → ChatGPT'},
+ {s:2022.9,e:2027,n:'생성형 AI·에이전트',sh:'생성 AI·에이전트',col:'var(--c-llm)',p:'범용 파운데이션 모델, 추론·도구 사용',k:'ChatGPT, GPT-4, Claude, Gemini, LLaMA, o1, DeepSeek-R1, MCP, 코딩 에이전트',x:'진행 중 — 추론, 에이전트, 안전·규제가 핵심 과제'}
+];
+
+const NS='http://www.w3.org/2000/svg';
+function el(tag,attrs,parent,style){const e=document.createElementNS(NS,tag);for(const k in attrs)e.setAttribute(k,attrs[k]);if(style)e.setAttribute('style',style);if(parent)parent.appendChild(e);return e;}
+function txt(parent,x,y,s,style,attrs){const t=el('text',Object.assign({x,y},attrs||{}),parent,style);t.textContent=s;return t;}
+const tip=document.getElementById('tip');
+function showTip(ev,e){tip.innerHTML=`<span class="y">${Math.floor(e.y)} · ${CAT[e.c].n}</span><b>${e.t}</b>${e.w&&e.w!=='—'?`<span style="opacity:.8">${e.w}</span><br>`:''}${e.d}`;tip.style.opacity=1;moveTip(ev);}
+function moveTip(ev){const r=tip.getBoundingClientRect();let x=ev.clientX+14,y=ev.clientY+14;if(x+r.width>innerWidth-8)x=ev.clientX-r.width-14;if(y+r.height>innerHeight-8)y=ev.clientY-r.height-14;tip.style.left=x+'px';tip.style.top=y+'px';}
+function hideTip(){tip.style.opacity=0;}
+
+/* ---------- 02 Timeline ---------- */
+function renderTimeline(){
+  const svg=document.getElementById('tl');
+  const W=1600,L=110,R=30,T=56,laneH=92,lanes=['AI','ML','DL','LLM'],H=T+laneH*lanes.length+46;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const span=W-L-R,BRK=2005,Y0=1940,Y1=2027,SPLIT=0.38;
+  const x=y=>y<=BRK?L+(y-Y0)/(BRK-Y0)*span*SPLIT:L+span*SPLIT+(y-BRK)/(Y1-BRK)*span*(1-SPLIT);
+  const bottom=T+laneH*lanes.length;
+  ERAS.forEach((e,i)=>{
+    el('rect',{x:x(e.s),y:T,width:x(e.e)-x(e.s),height:bottom-T},svg,`fill:${e.col};fill-opacity:${e.w?.28:(i%2?.07:.11)}`);
+    if(e.w) for(let hx=x(e.s);hx<x(e.e);hx+=8) el('line',{x1:hx,y1:T,x2:hx,y2:bottom},svg,'stroke:var(--winter);stroke-opacity:.25;stroke-width:1');
+    txt(svg,(x(e.s)+x(e.e))/2,T-12,e.sh,`font-size:12px;font-weight:700;fill:${e.w?'var(--muted)':'var(--ink)'}`,{'text-anchor':'middle'});
+    el('line',{x1:x(e.s),y1:T-6,x2:x(e.s),y2:bottom},svg,'stroke:var(--line);stroke-width:1');
+  });
+  lanes.forEach((c,i)=>{
+    const cy=T+laneH*i+laneH/2;
+    el('line',{x1:L,y1:cy,x2:W-R,y2:cy},svg,`stroke:${CAT[c].c};stroke-opacity:.45;stroke-width:1.5`);
+    if(i>0) el('line',{x1:L,y1:T+laneH*i,x2:W-R,y2:T+laneH*i},svg,'stroke:var(--line)');
+    el('rect',{x:8,y:cy-15,width:L-18,height:30,rx:15},svg,`fill:${CAT[c].c}`);
+    txt(svg,8+(L-18)/2,cy+5,CAT[c].n,'font-size:13px;font-weight:700;fill:#fff',{'text-anchor':'middle'});
+  });
+  el('rect',{x:L,y:T,width:span,height:bottom-T},svg,'fill:none;stroke:var(--line)');
+  // break marker
+  el('line',{x1:x(BRK),y1:T,x2:x(BRK),y2:bottom+8},svg,'stroke:var(--ink);stroke-dasharray:4 4;stroke-opacity:.6');
+  txt(svg,x(BRK),bottom+40,'◀ 압축 구간 | 확대 구간 ▶','font-size:11px;fill:var(--muted)',{'text-anchor':'middle'});
+  const ticks=[];for(let y=1940;y<2005;y+=10)ticks.push(y);for(let y=2005;y<=2026;y+=(y<2010?5:2))ticks.push(y);if(!ticks.includes(2026))ticks.push(2026);
+  ticks.forEach(y=>{el('line',{x1:x(y),y1:bottom,x2:x(y),y2:bottom+6},svg,'stroke:var(--muted)');txt(svg,x(y),bottom+20,y,'font-size:11px;fill:var(--muted)',{'text-anchor':'middle',class:'mono'});});
+  // events
+  const groups={};
+  EV.forEach((e,i)=>{e.i=i;const k=e.c+'|'+Math.round(x(e.y)/14);(groups[k]=groups[k]||[]).push(e);});
+  const levels=[-16,24,-30,38];const lvlCount={AI:0,ML:0,DL:0,LLM:0};
+  EV.forEach(e=>{
+    const li=lanes.indexOf(e.c),cy=T+laneH*li+laneH/2;
+    const g=groups[e.c+'|'+Math.round(x(e.y)/14)],gi=g.indexOf(e);
+    const dy=(gi-(g.length-1)/2)*11,cx=x(e.y);
+    if(e.s){
+      const lv=levels[lvlCount[e.c]++%levels.length];
+      el('line',{x1:cx,y1:cy+dy,x2:cx,y2:cy+lv+(lv<0?4:-10)},svg,`stroke:${CAT[e.c].c};stroke-opacity:.5`);
+      txt(svg,cx,cy+lv,e.s,`font-size:11.5px;font-weight:700;fill:${CAT[e.c].c};paint-order:stroke;stroke:var(--paper);stroke-width:3px`,{'text-anchor':'middle'});
+    }
+    const c=el('circle',{cx,cy:cy+dy,r:e.s?6.5:4.2,class:'ev'},svg,`fill:${CAT[e.c].c};stroke:var(--paper);stroke-width:1.5`);
+    c.addEventListener('mouseenter',ev=>showTip(ev,e));c.addEventListener('mousemove',moveTip);c.addEventListener('mouseleave',hideTip);
+    c.addEventListener('click',()=>jumpTo(e.i));
+  });
+}
+
+/* ---------- 03 Era table ---------- */
+function renderEras(){
+  const tb=document.querySelector('#eraTable tbody');
+  tb.innerHTML=ERAS.map(e=>`<tr><td class="yr">${Math.floor(e.s)}–${e.e>2026?'현재':Math.floor(e.e)}</td><td><b style="color:${e.col}">${e.n}</b></td><td>${e.p}</td><td>${e.k}</td><td>${e.x}</td></tr>`).join('');
+}
+
+/* ---------- 04 Params ---------- */
+function renderParams(){
+  const P=[['LeNet-5',1998,6e4,'DL',7,4],['AlexNet',2012.7,6e7,'DL',-7,-8,'end'],['VGG-16',2014.7,1.38e8,'DL',0,-12,'middle'],['ResNet-152',2015.9,6e7,'DL',0,18,'middle'],
+   ['Transformer',2017.5,2.13e8,'LLM',-7,-6,'end'],['GPT-1',2018.4,1.17e8,'LLM',0,18,'middle'],['BERT-L',2018.8,3.4e8,'LLM',7,-4],['GPT-2',2019.1,1.5e9,'LLM',-7,-6,'end'],
+   ['T5-11B',2019.8,1.1e10,'LLM',-7,-6,'end'],['GPT-3',2020.4,1.75e11,'LLM',-7,-6,'end'],['MT-NLG',2021.8,5.3e11,'LLM',-7,-8,'end'],['Chinchilla',2022.2,7e10,'LLM',0,18,'middle'],
+   ['PaLM',2022.3,5.4e11,'LLM',7,-8],['LLaMA',2023.1,6.5e10,'LLM',7,14],['Llama 3.1',2024.5,4.05e11,'LLM',0,18,'middle'],['DeepSeek-V3',2024.95,6.71e11,'LLM',-7,-10,'end'],['Kimi K2',2025.5,1e12,'LLM',0,-12,'middle']];
+  const svg=document.getElementById('params'),W=560,H=400,L=56,R=16,T=20,B=36;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const x=y=>L+(y-1996)/(2027-1996)*(W-L-R),y=v=>T+(12.5-Math.log10(v))/(12.5-4)*(H-T-B);
+  const lab={4:'10K',5:'100K',6:'1M',7:'10M',8:'100M',9:'1B',10:'10B',11:'100B',12:'1T'};
+  for(let p=4;p<=12;p++){el('line',{x1:L,y1:y(10**p),x2:W-R,y2:y(10**p)},svg,'stroke:var(--line);stroke-dasharray:2 3');txt(svg,L-6,y(10**p)+4,lab[p],'font-size:10.5px;fill:var(--muted)',{'text-anchor':'end',class:'mono'});}
+  for(let yr=2000;yr<=2025;yr+=5){txt(svg,x(yr),H-B+18,yr,'font-size:10.5px;fill:var(--muted)',{'text-anchor':'middle',class:'mono'});}
+  el('line',{x1:L,y1:H-B,x2:W-R,y2:H-B},svg,'stroke:var(--muted)');
+  // trend line (LLM)
+  const llm=P.filter(p=>p[3]==='LLM'&&p[0]!=='Chinchilla'&&p[0]!=='LLaMA');
+  el('polyline',{points:llm.map(p=>x(p[1])+','+y(p[2])).join(' ')},svg,'fill:none;stroke:var(--c-llm);stroke-opacity:.35;stroke-width:2');
+  P.forEach(p=>{
+    el('circle',{cx:x(p[1]),cy:y(p[2]),r:5},svg,`fill:${CAT[p[3]].c};stroke:var(--paper);stroke-width:1.5`);
+    txt(svg,x(p[1])+p[4],y(p[2])+p[5],p[0],'font-size:10.5px;font-weight:500;paint-order:stroke;stroke:var(--paper);stroke-width:3px',{'text-anchor':p[6]||'start'});
+  });
+  txt(svg,L+4,T+10,'파라미터 수 (log)','font-size:11px;fill:var(--muted)');
+}
+
+/* ---------- 05 Decades ---------- */
+function renderDecades(){
+  const svg=document.getElementById('decades'),W=560,H=400,L=40,R=12,T=24,B=40;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const dec=[];for(let d=1940;d<=2020;d+=10)dec.push(d);
+  const cats=['AI','ML','DL','LLM'];
+  const cnt=dec.map(d=>{const o={};cats.forEach(c=>o[c]=EV.filter(e=>e.c===c&&e.y>=d&&e.y<d+10).length);o.t=cats.reduce((a,c)=>a+o[c],0);return o;});
+  const max=Math.ceil(Math.max(...cnt.map(o=>o.t))/5)*5;
+  const bw=(W-L-R)/dec.length,y=v=>T+(1-v/max)*(H-T-B);
+  for(let v=0;v<=max;v+=5){el('line',{x1:L,y1:y(v),x2:W-R,y2:y(v)},svg,'stroke:var(--line);stroke-dasharray:2 3');txt(svg,L-6,y(v)+4,v,'font-size:10.5px;fill:var(--muted)',{'text-anchor':'end',class:'mono'});}
+  dec.forEach((d,i)=>{
+    let acc=0;const bx=L+i*bw+bw*0.18,w=bw*0.64;
+    cats.forEach(c=>{const v=cnt[i][c];if(!v)return;const r=el('rect',{x:bx,y:y(acc+v),width:w,height:y(acc)-y(acc+v)},svg,`fill:${CAT[c].c}`);
+      const tt=el('title',{},r);tt.textContent=`${d}년대 ${CAT[c].n}: ${v}건`;acc+=v;});
+    txt(svg,bx+w/2,y(acc)-6,cnt[i].t,'font-size:11px;font-weight:700',{'text-anchor':'middle',class:'mono'});
+    txt(svg,bx+w/2,H-B+18,`${String(d).slice(2)}s`,'font-size:11px;fill:var(--muted)',{'text-anchor':'middle',class:'mono'});
+  });
+  el('line',{x1:L,y1:H-B,x2:W-R,y2:H-B},svg,'stroke:var(--muted)');
+  let lx=L;cats.forEach(c=>{el('rect',{x:lx,y:4,width:10,height:10,rx:2},svg,`fill:${CAT[c].c}`);txt(svg,lx+14,13,CAT[c].n,'font-size:11px');lx+=70;});
+}
+
+/* ---------- 06 Event table ---------- */
+let fCat='ALL',asc=true;
+function renderTable(hl){
+  const q=document.getElementById('q').value.trim().toLowerCase(),key=document.getElementById('keyOnly').checked;
+  let rows=EV.filter(e=>(fCat==='ALL'||e.c===fCat)&&(!key||e.s)&&(!q||(e.t+e.w+e.d+e.c+Math.floor(e.y)).toLowerCase().includes(q)));
+  rows.sort((a,b)=>asc?a.y-b.y:b.y-a.y);
+  document.querySelector('#evTable tbody').innerHTML=rows.map(e=>`<tr id="ev-${e.i}" class="${hl===e.i?'hl':''}"><td class="yr">${Math.floor(e.y)}</td><td><span class="tag" style="background:${CAT[e.c].c}">${CAT[e.c].n}</span></td><td><b>${e.t}</b> ${e.s?'<span class="star">★</span>':''}</td><td class="who">${e.w}</td><td>${e.d}</td></tr>`).join('');
+  document.getElementById('cnt').textContent=`${rows.length} / ${EV.length}건`;
+}
+function jumpTo(i){
+  fCat='ALL';document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c.dataset.c==='ALL'));
+  document.getElementById('q').value='';document.getElementById('keyOnly').checked=false;
+  renderTable(i);const r=document.getElementById('ev-'+i);
+  if(r){r.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{fCat=b.dataset.c;document.querySelectorAll('.chip').forEach(c=>c.classList.toggle('on',c===b));renderTable();}));
+document.getElementById('q').addEventListener('input',()=>renderTable());
+document.getElementById('keyOnly').addEventListener('change',()=>renderTable());
+document.getElementById('thYear').addEventListener('click',()=>{asc=!asc;renderTable();});
+
+renderTimeline();renderEras();renderParams();renderDecades();renderTable();
+</script>
+</body>
+</html>
