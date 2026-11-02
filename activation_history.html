@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>활성화 함수의 역사 — 계단함수에서 SwiGLU까지</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script>
+window.MathJax = { tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] }, svg: { fontCache: 'global' } };
+</script>
+<script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+<style>
+
+:root{
+  --paper:#faf6ef; --paper2:#f3ece0; --card:#fffdf9; --ink:#2b2420; --ink2:#5c5049;
+  --muted:#8a7d73; --line:#e4d9c9; --accent:#b8532f; --accent2:#d9825b; --accent-soft:#f6e3d8;
+  --sage:#5f7f63; --sage-soft:#e3ece1; --blue:#3f6b8f; --blue-soft:#e1eaf2;
+  --gold:#a8822d; --gold-soft:#f5ecd4; --red:#a33a3a; --red-soft:#f6dede;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:Pretendard,'Noto Sans KR',sans-serif;
+  font-size:16px;line-height:1.78;-webkit-font-smoothing:antialiased}
+.layout{display:flex;max-width:1360px;margin:0 auto}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;width:270px;flex-shrink:0;
+  padding:28px 18px 40px;border-right:1px solid var(--line);background:var(--paper2)}
+nav.side .brand{font-family:Spectral,serif;font-size:20px;font-weight:600;color:var(--accent);margin-bottom:4px}
+nav.side .sub{font-size:12px;color:var(--muted);margin-bottom:18px}
+nav.side a{display:block;padding:6px 10px;border-radius:6px;color:var(--ink2);text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;margin-bottom:2px}
+nav.side a:hover{background:#ebe2d3}
+nav.side a.active{background:var(--accent-soft);color:var(--accent);border-left-color:var(--accent);font-weight:600}
+nav.side .num{display:inline-block;width:26px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted)}
+main{flex:1;min-width:0;padding:48px 56px 120px}
+header.hero{border-bottom:2px solid var(--accent);padding-bottom:28px;margin-bottom:40px}
+header.hero .kicker{font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.12em;color:var(--accent);text-transform:uppercase}
+header.hero h1{font-family:Spectral,Pretendard,serif;font-size:40px;line-height:1.25;margin:10px 0 12px;font-weight:600}
+header.hero p{color:var(--ink2);max-width:780px;margin:0}
+.tags{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+.tags span{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--card);border:1px solid var(--line);color:var(--ink2)}
+section{margin-bottom:64px;scroll-margin-top:20px}
+h2{font-family:Spectral,Pretendard,serif;font-size:29px;font-weight:600;margin:0 0 18px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+h2 .ch{font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--accent);display:block;letter-spacing:.08em;margin-bottom:2px}
+h3{font-size:19px;margin:30px 0 10px;color:var(--ink)}
+h3::before{content:"§ ";color:var(--accent2)}
+p{margin:0 0 14px}
+strong{color:#3a2a22}
+code{font-family:'JetBrains Mono',monospace;font-size:.88em;background:var(--paper2);padding:1px 6px;border-radius:4px;color:#7a3a1f}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 24px;margin:18px 0}
+.box{border-radius:10px;padding:14px 18px;margin:18px 0;border-left:4px solid}
+.box .t{font-weight:700;margin-bottom:4px;font-size:14.5px}
+.box.key{background:var(--accent-soft);border-color:var(--accent)} .box.key .t{color:var(--accent)}
+.box.tip{background:var(--sage-soft);border-color:var(--sage)} .box.tip .t{color:var(--sage)}
+.box.warn{background:var(--red-soft);border-color:var(--red)} .box.warn .t{color:var(--red)}
+.box.note{background:var(--blue-soft);border-color:var(--blue)} .box.note .t{color:var(--blue)}
+.formula{background:var(--card);border:1px dashed var(--accent2);border-radius:10px;padding:10px 18px;margin:16px 0;overflow-x:auto}
+table{border-collapse:collapse;width:100%;margin:16px 0;font-size:14.5px;background:var(--card)}
+th,td{border:1px solid var(--line);padding:8px 12px;text-align:left;vertical-align:top}
+th{background:var(--paper2);font-weight:600;color:#3a2a22}
+td.num,th.num{text-align:right;font-family:'JetBrains Mono',monospace;font-size:13.5px}
+tr.hl td{background:var(--gold-soft)}
+pre{margin:0;font-family:'JetBrains Mono',monospace;font-size:13.3px;line-height:1.6;overflow-x:auto;white-space:pre}
+.code{background:#fbf8f3;border:1px solid var(--line);border-radius:10px 10px 0 0;padding:14px 18px;color:#3b2f28}
+.code-label,.out-label{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.08em;padding:4px 12px;display:inline-block;border-radius:6px 6px 0 0}
+.code-label{background:var(--accent);color:#fff;margin-top:14px}
+.out{background:#f1f5ef;border:1px solid #cfdccb;border-top:none;border-radius:0 0 10px 10px;padding:12px 18px;color:#2f4a33;margin-bottom:18px}
+.out-label{background:var(--sage);color:#fff;border-radius:0;margin:0}
+.kw{color:#a3401f;font-weight:600}.fn{color:#2f5f86}.str{color:#5f7f2f}.cm{color:#9a8b7d;font-style:italic}.nu{color:#8a5a00}
+.fig{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin:20px 0;text-align:center}
+.fig svg{max-width:100%;height:auto}
+.fig .cap{font-size:13px;color:var(--muted);margin-top:8px}
+.steps{counter-reset:s;list-style:none;padding:0}
+.steps li{counter-increment:s;position:relative;padding:4px 0 10px 42px}
+.steps li::before{content:counter(s);position:absolute;left:0;top:4px;width:28px;height:28px;border-radius:50%;
+  background:var(--accent);color:#fff;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center}
+.lab{background:var(--card);border:2px solid var(--accent2);border-radius:14px;padding:18px 22px;margin:22px 0}
+.lab .lt{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);letter-spacing:.1em;margin-bottom:8px}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0}
+button{font-family:inherit;font-size:13.5px;padding:7px 14px;border-radius:8px;border:1px solid var(--accent);
+  background:var(--card);color:var(--accent);cursor:pointer;font-weight:600}
+button:hover{background:var(--accent-soft)}
+button.pri{background:var(--accent);color:#fff}
+button.pri:hover{background:#9d4425}
+input[type=range]{accent-color:var(--accent);width:180px}
+.readout{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--ink2);background:var(--paper2);padding:6px 10px;border-radius:6px}
+canvas{max-width:100%;background:#fffdf9;border:1px solid var(--line);border-radius:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:980px){nav.side{display:none}main{padding:28px 20px}.grid2{grid-template-columns:1fr}header.hero h1{font-size:30px}}
+.q{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:12px 0}
+.q .qt{font-weight:600;margin-bottom:8px}
+.q label{display:block;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:14.5px}
+.q label:hover{background:var(--paper2)}
+.q label.ok{background:var(--sage-soft);color:#2f4a33;font-weight:600}
+.q label.no{background:var(--red-soft);color:var(--red)}
+.q .ex{display:none;margin-top:8px;font-size:14px;color:var(--ink2);border-top:1px dashed var(--line);padding-top:8px}
+.q.done .ex{display:block}
+.score{position:sticky;top:10px;z-index:5;display:inline-block;background:var(--accent);color:#fff;padding:5px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.check li{list-style:none;margin-left:-20px;padding:3px 0}
+.check input{accent-color:var(--sage);margin-right:8px}
+
+.era{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:12px;padding:2px 10px;border-radius:12px;margin-bottom:8px;font-weight:600}
+.era.e1{background:#e1eaf2;color:#3f6b8f}.era.e2{background:#f5ecd4;color:#a8822d}.era.e3{background:#f6e3d8;color:#b8532f}
+.era.e4{background:#e3ece1;color:#5f7f63}.era.e5{background:#ece3f2;color:#6d4f8a}
+.fcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:16px 0;display:grid;grid-template-columns:1fr 250px;gap:18px;align-items:center}
+.fcard h4{margin:0 0 4px;font-size:17px}
+.fcard .who{font-size:13px;color:var(--muted);margin-bottom:8px}
+.fcard canvas{width:250px;height:150px}
+.pros{font-size:14px;margin:6px 0 0}
+.pros b.p{color:var(--sage)}.pros b.c{color:var(--red)}
+@media(max-width:980px){.fcard{grid-template-columns:1fr}}
+.chk{display:inline-flex;align-items:center;gap:4px;font-size:13.5px;padding:3px 10px;border-radius:14px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+.chk input{margin:0}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="side" id="toc">
+  <div class="brand">활성화 함수의 역사</div>
+  <div class="sub">Activation Functions · 1943 → 2023</div>
+  <a href="#c1"><span class="num">01</span>활성화 함수란</a>
+  <a href="#c2"><span class="num">02</span>80년 연대기 한눈에</a>
+  <a href="#c3"><span class="num">03</span>1막 · 계단함수 시대</a>
+  <a href="#c4"><span class="num">04</span>2막 · S자 곡선 시대</a>
+  <a href="#c5"><span class="num">05</span>기울기 소실 문제</a>
+  <a href="#c6"><span class="num">06</span>3막 · ReLU 혁명</a>
+  <a href="#c7"><span class="num">07</span>ReLU의 후예들</a>
+  <a href="#c8"><span class="num">08</span>4막 · 부드러운 게이트</a>
+  <a href="#c9"><span class="num">09</span>5막 · GLU와 LLM</a>
+  <a href="#c10"><span class="num">10</span>출력층 함수</a>
+  <a href="#c11"><span class="num">11</span>인터랙티브 플로터</a>
+  <a href="#c12"><span class="num">12</span>종합 비교 · 선택 가이드</a>
+  <a href="#c13"><span class="num">13</span>PyTorch 실습</a>
+  <a href="#c14"><span class="num">14</span>퀴즈 · 체크리스트</a>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="kicker">History of Deep Learning</div>
+  <h1>활성화 함수의 역사<br>— 계단함수에서 SwiGLU까지 80년</h1>
+  <p>신경망은 활성화 함수가 바뀔 때마다 한 단계씩 도약했습니다. 미분할 수 없던 <strong>계단함수</strong>는 역전파를 위해 <strong>시그모이드</strong>에 자리를 내줬고,
+  시그모이드의 <strong>기울기 소실</strong>은 <strong>ReLU</strong>가 해결하며 딥러닝 시대를 열었으며, 오늘날 LLM은 <strong>GELU·SwiGLU</strong>를 씁니다.
+  이 학습서는 각 함수가 <em>어떤 문제를 풀기 위해 등장했고, 어떤 새 문제를 남겼는지</em>를 따라갑니다.</p>
+  <div class="tags"><span>14 챕터</span><span>5막 구성</span><span>연대기 SVG</span><span>함수·도함수 플로터</span><span>PyTorch 검증</span><span>퀴즈 10문항</span></div>
+</header>
+
+<!-- 1 -->
+<section id="c1">
+<h2><span class="ch">CHAPTER 01</span>활성화 함수란 무엇이고 왜 필요한가</h2>
+<p>뉴런은 입력의 가중합 \(z=\mathbf w^\top\mathbf x+b\)를 계산한 뒤, 이를 <strong>활성화 함수</strong> \(f\)에 통과시켜 출력 \(a=f(z)\)를 냅니다.
+활성화 함수는 "이 뉴런이 얼마나 켜질 것인가"를 결정하는 스위치이자, 신경망에 <strong>비선형성</strong>을 불어넣는 유일한 장치입니다.</p>
+<h3>비선형이 없으면 층을 쌓는 의미가 없다</h3>
+<p>활성화 함수가 항등함수(선형)라면 2층 망은</p>
+<div class="formula">\[ \mathbf y = W_2(W_1\mathbf x+\mathbf b_1)+\mathbf b_2 = \underbrace{(W_2W_1)}_{W'}\mathbf x+\underbrace{(W_2\mathbf b_1+\mathbf b_2)}_{\mathbf b'} \]</div>
+<p>로 <strong>단일 선형층과 똑같아집니다</strong>. 100층을 쌓아도 마찬가지입니다. 비선형 활성화가 있어야 망이 곡선 경계, 즉 XOR 같은 문제를 표현할 수 있고,
+보편 근사 정리(Cybenko 1989, Hornik 1991)가 보장하는 "충분히 넓은 망은 어떤 연속함수든 근사한다"는 성질이 성립합니다.</p>
+<h3>좋은 활성화 함수의 조건 — 역사가 하나씩 발견한 것들</h3>
+<table>
+<tr><th>조건</th><th>이유</th><th>이 조건을 깨달은 계기</th></tr>
+<tr><td>미분 가능 (거의 모든 곳)</td><td>역전파로 기울기를 전달해야 함</td><td>계단함수 → 시그모이드 (1986)</td></tr>
+<tr><td>0 중심 출력</td><td>다음 층 가중치 갱신이 한쪽으로 쏠리지 않음</td><td>시그모이드 → tanh (LeCun 1998)</td></tr>
+<tr><td>포화하지 않음 (기울기 ≈ 1 유지)</td><td>깊은 망에서 기울기 소실 방지</td><td>tanh → ReLU (2010~2012)</td></tr>
+<tr><td>음수 영역에서도 기울기 존재</td><td>죽은 뉴런(dead neuron) 방지</td><td>ReLU → Leaky/ELU (2013~2015)</td></tr>
+<tr><td>계산 비용이 낮음</td><td>수십억 번 호출됨</td><td>ReLU의 max(0,x)가 오래 살아남은 이유</td></tr>
+<tr><td>매끄러움 (smooth)</td><td>최적화 지형이 부드러워짐</td><td>ReLU → GELU/SiLU (2016~2017)</td></tr>
+</table>
+</section>
+
+<!-- 2 -->
+<section id="c2">
+<h2><span class="ch">CHAPTER 02</span>80년 연대기 한눈에</h2>
+<div class="fig">
+<svg viewBox="0 0 980 360" xmlns="http://www.w3.org/2000/svg" font-family="Pretendard,sans-serif">
+  <rect x="20" y="40" width="170" height="16" rx="8" fill="#e1eaf2"/>
+  <rect x="190" y="40" width="270" height="16" rx="8" fill="#f5ecd4"/>
+  <rect x="460" y="40" width="230" height="16" rx="8" fill="#f6e3d8"/>
+  <rect x="690" y="40" width="130" height="16" rx="8" fill="#e3ece1"/>
+  <rect x="820" y="40" width="140" height="16" rx="8" fill="#ece3f2"/>
+  <g font-size="13" font-weight="700" text-anchor="middle">
+    <text x="105" y="30" fill="#3f6b8f">1막 계단함수</text>
+    <text x="325" y="30" fill="#a8822d">2막 S자 곡선</text>
+    <text x="575" y="30" fill="#b8532f">3막 ReLU 혁명</text>
+    <text x="755" y="30" fill="#5f7f63">4막 부드러운 게이트</text>
+    <text x="890" y="30" fill="#6d4f8a">5막 GLU · LLM</text>
+  </g>
+  <line x1="20" y1="110" x2="960" y2="110" stroke="#5c5049" stroke-width="2"/>
+  <g font-size="12">
+    <!-- top labels -->
+    <g fill="#3f6b8f"><circle cx="40" cy="110" r="6"/>      <text x="40" y="75" text-anchor="middle" font-weight="700">1943</text></g>
+    <text x="22" y="140">McCulloch-Pitts</text><text x="22" y="155" fill="#8a7d73">계단함수</text>
+    <g fill="#3f6b8f"><circle cx="110" cy="110" r="6"/><text x="110" y="75" text-anchor="middle" font-weight="700">1958</text></g>
+    <text x="110" y="180" text-anchor="middle">Rosenblatt</text><text x="110" y="195" text-anchor="middle" fill="#8a7d73">퍼셉트론</text>
+    <g fill="#3f6b8f"><circle cx="170" cy="110" r="6"/><text x="170" y="75" text-anchor="middle" font-weight="700">1969</text></g>
+    <text x="170" y="140" text-anchor="middle">Minsky·Papert</text><text x="170" y="155" text-anchor="middle" fill="#8a7d73">XOR 한계</text>
+    <g fill="#a8822d"><circle cx="250" cy="110" r="6"/><text x="250" y="75" text-anchor="middle" font-weight="700">1986</text></g>
+    <text x="250" y="180" text-anchor="middle">Rumelhart 외</text><text x="250" y="195" text-anchor="middle" fill="#8a7d73">역전파 + Sigmoid</text>
+    <g fill="#a8822d"><circle cx="320" cy="110" r="6"/><text x="320" y="75" text-anchor="middle" font-weight="700">1991</text></g>
+    <text x="320" y="140" text-anchor="middle">Hochreiter</text><text x="320" y="155" text-anchor="middle" fill="#8a7d73">기울기 소실 분석</text>
+    <g fill="#a8822d"><circle cx="400" cy="110" r="6"/><text x="400" y="75" text-anchor="middle" font-weight="700">1998</text></g>
+    <text x="400" y="180" text-anchor="middle">LeCun</text><text x="400" y="195" text-anchor="middle" fill="#8a7d73">tanh 권장</text>
+    <g fill="#b8532f"><circle cx="480" cy="110" r="6"/><text x="480" y="75" text-anchor="middle" font-weight="700">2000</text></g>
+    <text x="480" y="140" text-anchor="middle">Hahnloser 외</text><text x="480" y="155" text-anchor="middle" fill="#8a7d73">정류기(ReLU)</text>
+    <g fill="#b8532f"><circle cx="545" cy="110" r="6"/><text x="545" y="75" text-anchor="middle" font-weight="700">2010</text></g>
+    <text x="545" y="180" text-anchor="middle">Nair·Hinton</text><text x="545" y="195" text-anchor="middle" fill="#8a7d73">ReLU in RBM</text>
+    <g fill="#b8532f"><circle cx="600" cy="110" r="7"/><text x="600" y="75" text-anchor="middle" font-weight="700">2012</text></g>
+    <text x="600" y="140" text-anchor="middle" font-weight="700">AlexNet</text><text x="600" y="155" text-anchor="middle" fill="#8a7d73">ReLU 대중화</text>
+    <g fill="#b8532f"><circle cx="660" cy="110" r="6"/><text x="660" y="75" text-anchor="middle" font-weight="700">2013~15</text></g>
+    <text x="660" y="180" text-anchor="middle">Leaky · PReLU</text><text x="660" y="195" text-anchor="middle" fill="#8a7d73">ELU</text>
+    <g fill="#5f7f63"><circle cx="715" cy="110" r="6"/><text x="715" y="75" text-anchor="middle" font-weight="700">2016</text></g>
+    <text x="715" y="140" text-anchor="middle">Hendrycks</text><text x="715" y="155" text-anchor="middle" fill="#8a7d73">GELU</text>
+    <g fill="#5f7f63"><circle cx="770" cy="110" r="6"/><text x="770" y="75" text-anchor="middle" font-weight="700">2017</text></g>
+    <text x="770" y="180" text-anchor="middle">Swish · SELU</text><text x="770" y="195" text-anchor="middle" fill="#8a7d73">Transformer</text>
+    <g fill="#5f7f63"><circle cx="810" cy="110" r="6"/><text x="810" y="75" text-anchor="middle" font-weight="700">2018</text></g>
+    <text x="810" y="140" text-anchor="middle">BERT·GPT</text><text x="810" y="155" text-anchor="middle" fill="#8a7d73">GELU 채택</text>
+    <g fill="#6d4f8a"><circle cx="860" cy="110" r="6"/><text x="860" y="75" text-anchor="middle" font-weight="700">2020</text></g>
+    <text x="860" y="180" text-anchor="middle">Shazeer</text><text x="860" y="195" text-anchor="middle" fill="#8a7d73">SwiGLU</text>
+    <g fill="#6d4f8a"><circle cx="925" cy="110" r="6"/><text x="925" y="75" text-anchor="middle" font-weight="700">2022~23</text></g>
+    <text x="925" y="140" text-anchor="middle">PaLM · LLaMA</text><text x="925" y="155" text-anchor="middle" fill="#8a7d73">SwiGLU 표준</text>
+  </g>
+  <!-- shape strip -->
+  <g stroke-width="2.5" fill="none">
+    <g transform="translate(60,240)"><path d="M0,60 L50,60 L50,10 L100,10" stroke="#3f6b8f"/><text x="50" y="90" font-size="12" text-anchor="middle" fill="#3f6b8f" stroke="none">Step</text></g>
+    <g transform="translate(250,240)"><path d="M0,58 C40,58 40,58 50,35 C60,12 60,12 100,12" stroke="#a8822d"/><text x="50" y="90" font-size="12" text-anchor="middle" fill="#a8822d" stroke="none">Sigmoid / tanh</text></g>
+    <g transform="translate(450,240)"><path d="M0,60 L50,60 L100,10" stroke="#b8532f"/><text x="50" y="90" font-size="12" text-anchor="middle" fill="#b8532f" stroke="none">ReLU</text></g>
+    <g transform="translate(640,240)"><path d="M0,60 C30,60 38,66 50,60 C62,52 80,25 100,10" stroke="#5f7f63"/><text x="50" y="90" font-size="12" text-anchor="middle" fill="#5f7f63" stroke="none">GELU / Swish</text></g>
+    <g transform="translate(820,240)"><rect x="0" y="10" width="100" height="50" rx="8" stroke="#6d4f8a"/><text x="50" y="40" font-size="13" text-anchor="middle" fill="#6d4f8a" stroke="none">Swish(xW)⊙xV</text><text x="50" y="90" font-size="12" text-anchor="middle" fill="#6d4f8a" stroke="none">SwiGLU</text></g>
+  </g>
+</svg>
+<div class="cap">그림 1. 활성화 함수 80년 — 각 막의 전환점에는 "이전 함수가 남긴 문제"가 있었다</div>
+</div>
+<table>
+<tr><th>막</th><th>시기</th><th>대표 함수</th><th>풀어낸 문제</th><th>남긴 문제</th></tr>
+<tr><td><span class="era e1">1막</span></td><td>1943~1969</td><td>계단함수</td><td>뉴런을 논리소자로 모델링</td><td>미분 불가 → 다층 학습 불가</td></tr>
+<tr><td><span class="era e2">2막</span></td><td>1986~2009</td><td>Sigmoid, tanh</td><td>미분 가능 → 역전파로 다층 학습</td><td>포화 → 기울기 소실</td></tr>
+<tr><td><span class="era e3">3막</span></td><td>2010~2015</td><td>ReLU, Leaky, PReLU, ELU</td><td>양수 영역 기울기 1 → 깊은 망 학습</td><td>죽은 뉴런, 비매끄러움</td></tr>
+<tr><td><span class="era e4">4막</span></td><td>2016~2019</td><td>GELU, SiLU/Swish, Mish</td><td>매끄러운 비단조 게이트</td><td>계산 비용 증가</td></tr>
+<tr><td><span class="era e5">5막</span></td><td>2020~현재</td><td>GLU, SwiGLU, GeGLU</td><td>FFN에 학습 가능한 게이트 → LLM 품질 향상</td><td>파라미터 1.5배(은닉폭 조정으로 보정)</td></tr>
+</table>
+</section>
+
+<!-- 3 -->
+<section id="c3">
+<h2><span class="ch">CHAPTER 03</span>1막 · 계단함수 시대 (1943~1969)</h2>
+<span class="era e1">ERA 1 · ALL OR NOTHING</span>
+<div class="fcard">
+<div><h4>계단함수 (Heaviside Step)</h4>
+<div class="who">McCulloch & Pitts, 1943 · Rosenblatt, 1958</div>
+\[ f(z)=\begin{cases}1 & z\ge\theta\\0 & z<\theta\end{cases} \]
+<p class="pros"><b class="p">＋</b> 생물학적 뉴런의 "발화/비발화"(all-or-none)를 그대로 모델링. 논리게이트 AND·OR·NOT 구현 가능<br>
+<b class="c">－</b> 도함수가 거의 모든 곳에서 0, \(z=\theta\)에서 정의되지 않음 → 기울기 기반 학습 불가</p></div>
+<canvas data-f="step" width="500" height="300"></canvas></div>
+<p><strong>McCulloch & Pitts (1943)</strong>는 뉴런을 임계값을 넘으면 1을 내는 논리소자로 모델링했습니다. 학습 규칙은 없었습니다.
+<strong>Rosenblatt (1958)</strong>의 퍼셉트론은 여기에 학습 규칙 \(w\leftarrow w+\eta(y-\hat y)x\)을 더했습니다. 출력이 틀렸을 때만 가중치를 고치는 이 규칙은
+단층에서는 잘 작동하지만, 은닉층 뉴런이 "얼마나 틀렸는지"를 계단함수로는 전달할 방법이 없었습니다.</p>
+<p><strong>Widrow & Hoff (1960)</strong>의 ADALINE은 학습 시에는 계단 이전의 <strong>선형 출력</strong> \(z\)로 오차를 계산(LMS, 델타 규칙)했습니다. 미분 가능한 신호로 학습한다는 아이디어의 시초입니다.</p>
+<div class="box warn"><div class="t">1969년, 첫 번째 AI 겨울</div>Minsky & Papert의 『Perceptrons』는 단층 퍼셉트론이 XOR을 풀 수 없음을 증명했습니다. 다층으로 쌓으면 풀 수 있다는 건 알려져 있었지만,
+<strong>계단함수로는 다층망을 학습시킬 방법이 없었습니다</strong>. 이 "학습 불가능성"이 연구 침체로 이어졌습니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="c4">
+<h2><span class="ch">CHAPTER 04</span>2막 · S자 곡선 시대 (1986~2009)</h2>
+<span class="era e2">ERA 2 · DIFFERENTIABLE</span>
+<p>해결책은 계단을 <strong>매끄럽게 깎는 것</strong>이었습니다. 모양은 계단과 비슷하되 모든 곳에서 미분 가능한 S자 곡선을 쓰면 연쇄법칙으로 기울기를 은닉층까지 보낼 수 있습니다.</p>
+<div class="fcard">
+<div><h4>Sigmoid (로지스틱 함수)</h4>
+<div class="who">함수 자체: Verhulst, 1838 (인구성장 모델) · 신경망 학습: Rumelhart, Hinton & Williams, 1986</div>
+\[ \sigma(z)=\frac{1}{1+e^{-z}},\qquad \sigma'(z)=\sigma(z)\big(1-\sigma(z)\big)\le 0.25 \]
+<p class="pros"><b class="p">＋</b> 출력이 (0,1) → 확률 해석 가능. 도함수를 자기 자신으로 표현해 계산이 쉬움<br>
+<b class="c">－</b> 도함수 최댓값이 0.25 → 층마다 기울기가 최소 1/4로 줄어듦. 출력이 항상 양수(0 중심 아님). exp 연산 비용</p></div>
+<canvas data-f="sigmoid" width="500" height="300"></canvas></div>
+<p>1986년 Nature에 실린 역전파 논문은 이 로지스틱 함수를 썼고, 마침내 XOR을 은닉층으로 푸는 다층망 학습이 가능해졌습니다. 신경망 연구의 부흥기입니다.</p>
+
+<div class="fcard">
+<div><h4>tanh (쌍곡탄젠트)</h4>
+<div class="who">LeCun 외 「Efficient BackProp」, 1998에서 권장</div>
+\[ \tanh(z)=\frac{e^z-e^{-z}}{e^z+e^{-z}}=2\sigma(2z)-1,\qquad \tanh'(z)=1-\tanh^2(z)\le 1 \]
+<p class="pros"><b class="p">＋</b> 출력 (−1,1)로 <strong>0 중심</strong>. 원점 기울기가 1로 sigmoid의 4배<br>
+<b class="c">－</b> 여전히 |z|가 커지면 포화(기울기 → 0)</p></div>
+<canvas data-f="tanh" width="500" height="300"></canvas></div>
+<h3>0 중심이 왜 중요한가</h3>
+<p>다음 층 가중치의 기울기는 \(\partial L/\partial w_i=\delta\cdot a_i\)입니다. sigmoid 출력 \(a_i\)가 모두 양수면, 한 뉴런으로 들어오는 모든 가중치의 기울기 부호가 \(\delta\)의 부호로 <strong>똑같아집니다</strong>.
+그러면 가중치들이 "모두 증가" 또는 "모두 감소"로만 움직일 수 있어 최적점까지 지그재그로 돌아가야 합니다. tanh는 출력이 양·음 섞여 이 문제가 완화됩니다.
+LeCun은 \(1.7159\tanh(\tfrac23 z)\) 형태를 권장했습니다(출력 분산 ≈ 1 유지).</p>
+<div class="box note"><div class="t">지금도 살아있는 S자 곡선</div>은닉층에서는 밀려났지만 <strong>LSTM(Hochreiter & Schmidhuber, 1997)의 게이트</strong>는 sigmoid(0~1 개폐율)와 tanh(셀 후보값)를 그대로 씁니다.
+"얼마나 통과시킬까"라는 비율이 필요한 곳에서는 여전히 최적입니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="c5">
+<h2><span class="ch">CHAPTER 05</span>기울기 소실 문제 — 2막을 끝낸 위기</h2>
+<p>역전파에서 \(L\)층 망의 1층 기울기는 각 층의 활성화 도함수를 모두 곱한 항을 포함합니다.</p>
+<div class="formula">\[ \frac{\partial L}{\partial W^{(1)}}\ \propto\ \prod_{l=1}^{L} f'\big(z^{(l)}\big)\,W^{(l+1)} \qquad\text{sigmoid: } f'\le 0.25 \Rightarrow 0.25^{10}\approx 9.5\times10^{-7} \]</div>
+<p><strong>Hochreiter (1991)</strong>의 학위논문이 이 현상을 처음 체계적으로 분석했고, Bengio 외(1994)가 RNN에서 장기 의존성 학습이 어려운 이유로 정리했습니다.
+결과적으로 2000년대 초반까지 "깊은 망은 학습이 안 된다"는 통념이 지배했고, SVM 같은 커널 방법이 주류가 됩니다.</p>
+<div class="lab">
+<div class="lt">◆ LAB 1 · 깊이에 따른 기울기 감쇠 (최대 기울기 기준)</div>
+<div class="ctrl">
+  <label>층 수 L <input type="range" id="depth" min="1" max="30" value="10"></label><span class="readout" id="depthv">L = 10</span>
+</div>
+<table style="margin:6px 0">
+<tr><th>활성화</th><th class="num">f′ 최댓값</th><th class="num">최댓값^L (최선의 경우)</th><th>판정</th></tr>
+<tr><td>Sigmoid</td><td class="num">0.25</td><td class="num" id="v_sig"></td><td id="j_sig"></td></tr>
+<tr><td>tanh (원점에서만 1, 실제로는 &lt;1)</td><td class="num">≈0.42 (z=±1)</td><td class="num" id="v_tanh"></td><td id="j_tanh"></td></tr>
+<tr><td>ReLU (양수 영역)</td><td class="num">1</td><td class="num" id="v_relu"></td><td id="j_relu"></td></tr>
+</table>
+<p style="font-size:13px;color:var(--muted);margin:0">※ tanh는 원점에서 1이지만 |z|=1만 돼도 0.42로 떨어집니다. 실제 망에서 모든 뉴런이 정확히 원점에 있을 수는 없습니다.</p>
+</div>
+<p>실제 20층 망(폭 64, Xavier/He 초기화)에서 측정한 1층·20층 가중치의 기울기 노름입니다(13장 코드 실행 결과).</p>
+<table>
+<tr><th>활성화</th><th class="num">1층 기울기</th><th class="num">20층 기울기</th><th class="num">1층/20층</th></tr>
+<tr class="hl"><td>Sigmoid</td><td class="num">1.79e-14</td><td class="num">1.23e-01</td><td class="num">1.46e-13</td></tr>
+<tr><td>Tanh</td><td class="num">9.61e-03</td><td class="num">1.63e-02</td><td class="num">5.91e-01</td></tr>
+<tr><td>ReLU</td><td class="num">8.39e-01</td><td class="num">2.93e+00</td><td class="num">2.86e-01</td></tr>
+</table>
+<p>Sigmoid의 1층 기울기는 1.79×10⁻¹⁴로 사실상 0입니다. 앞쪽 층이 전혀 학습되지 않습니다. tanh는 적절한 초기화와 함께라면 20층에서도 버티지만 절대 크기가 작고, ReLU는 기울기 크기가 가장 큽니다.</p>
+</section>
+
+<!-- 6 -->
+<section id="c6">
+<h2><span class="ch">CHAPTER 06</span>3막 · ReLU 혁명 (2010~2012)</h2>
+<span class="era e3">ERA 3 · RECTIFIED</span>
+<div class="fcard">
+<div><h4>ReLU (Rectified Linear Unit)</h4>
+<div class="who">Fukushima 1969(아이디어) · Hahnloser 외 2000 · Nair & Hinton 2010 · Glorot, Bordes & Bengio 2011 · Krizhevsky 외 2012</div>
+\[ \mathrm{ReLU}(z)=\max(0,z),\qquad \mathrm{ReLU}'(z)=\begin{cases}1&z>0\\0&z<0\end{cases} \]
+<p class="pros"><b class="p">＋</b> 양수 영역 기울기가 정확히 1 → 깊이에 따른 감쇠 없음. 비교 연산 하나로 매우 빠름. 약 절반이 0 → 희소 표현<br>
+<b class="c">－</b> 음수 입력의 기울기가 0 → 한 번 음수에 갇힌 뉴런은 영원히 죽음(Dying ReLU). 0 중심 아님. z=0에서 미분 불가(실무상 0으로 처리)</p></div>
+<canvas data-f="relu" width="500" height="300"></canvas></div>
+<h3>ReLU가 주류가 되기까지</h3>
+<table>
+<tr><th>연도</th><th>연구</th><th>기여</th></tr>
+<tr><td>1969</td><td>Fukushima — 시각 특징 추출 다층망</td><td>정류(rectification) 형태의 뉴런을 최초로 사용</td></tr>
+<tr><td>2000</td><td>Hahnloser 외 (Nature) — 피질 모방 실리콘 회로</td><td>정류 뉴런의 생물학적·수학적 근거 제시</td></tr>
+<tr><td>2010</td><td>Nair & Hinton (ICML) — RBM에 ReLU 적용</td><td>이진 유닛보다 우수함을 보임, "ReLU" 명칭 대중화</td></tr>
+<tr><td>2011</td><td>Glorot, Bordes & Bengio (AISTATS) — Deep Sparse Rectifier Networks</td><td>비지도 사전학습 없이도 깊은 망 학습 가능함을 입증</td></tr>
+<tr class="hl"><td>2012</td><td>Krizhevsky, Sutskever & Hinton — AlexNet</td><td>CIFAR-10에서 tanh 대비 <strong>약 6배 빠르게</strong> 목표 오차 도달. ImageNet 압승으로 딥러닝 시대 개막</td></tr>
+</table>
+<div class="box key"><div class="t">왜 이렇게 단순한 함수가 혁명이었나</div>
+2006년 Hinton의 DBN 이후에도 깊은 망은 "층별 비지도 사전학습"이라는 복잡한 우회로가 필요했습니다. ReLU는 <strong>기울기를 그대로 통과시키는 것만으로</strong>
+이 우회로를 불필요하게 만들었습니다. 같은 시기의 GPU, 대규모 데이터(ImageNet), Dropout, He 초기화와 결합해 현대 딥러닝의 기본 레시피가 되었습니다.</div>
+<div class="fcard">
+<div><h4>Softplus — ReLU의 매끄러운 사촌</h4>
+<div class="who">Dugas 외, 2001</div>
+\[ \mathrm{softplus}(z)=\ln(1+e^z),\qquad \mathrm{softplus}'(z)=\sigma(z) \]
+<p class="pros"><b class="p">＋</b> 모든 곳에서 미분 가능, 도함수가 정확히 sigmoid<br>
+<b class="c">－</b> 실험적으로 ReLU보다 낫지 않고 느림 → 은닉층보다는 "양수 출력이 필요한 곳"(분산 예측 등)에 사용</p></div>
+<canvas data-f="softplus" width="500" height="300"></canvas></div>
+</section>
+
+<!-- 7 -->
+<section id="c7">
+<h2><span class="ch">CHAPTER 07</span>ReLU의 후예들 — 죽은 뉴런을 살려라 (2013~2017)</h2>
+<p>ReLU의 가장 큰 약점은 <strong>Dying ReLU</strong>입니다. 큰 학습률이나 큰 음의 편향으로 어떤 뉴런의 입력이 모든 샘플에서 음수가 되면 기울기가 0이 되어 다시는 갱신되지 않습니다.
+후속 연구들은 하나같이 <strong>음수 영역에 작은 기울기를 주는 방법</strong>을 고민했습니다.</p>
+<div class="fcard">
+<div><h4>Leaky ReLU</h4><div class="who">Maas, Hannun & Ng, 2013 (음성인식)</div>
+\[ f(z)=\begin{cases}z&z\ge0\\ \alpha z&z<0\end{cases},\quad \alpha=0.01 \]
+<p class="pros"><b class="p">＋</b> 음수에서도 기울기 α → 뉴런이 죽지 않음<br><b class="c">－</b> α가 하이퍼파라미터, 성능 향상은 데이터에 따라 미미</p></div>
+<canvas data-f="leaky" width="500" height="300"></canvas></div>
+<div class="fcard">
+<div><h4>PReLU (Parametric ReLU)</h4><div class="who">He, Zhang, Ren & Sun, 2015 「Delving Deep into Rectifiers」</div>
+\[ f(z)=\max(0,z)+a\min(0,z),\quad a \text{는 학습되는 파라미터} \]
+<p class="pros"><b class="p">＋</b> 기울기 a를 데이터로부터 학습. 같은 논문에서 He 초기화도 제안, ImageNet top-5 오류 4.94%로 보고된 인간 수준(5.1%)을 처음 넘음<br>
+<b class="c">－</b> 작은 데이터에서 과적합 가능</p></div>
+<canvas data-f="prelu" width="500" height="300"></canvas></div>
+<div class="fcard">
+<div><h4>ELU (Exponential Linear Unit)</h4><div class="who">Clevert, Unterthiner & Hochreiter, 2015</div>
+\[ f(z)=\begin{cases}z&z>0\\ \alpha(e^z-1)&z\le0\end{cases} \]
+<p class="pros"><b class="p">＋</b> 음수 출력이 −α로 부드럽게 포화 → 평균 출력이 0에 가까워짐(0 중심 효과), 잡음에 강건<br><b class="c">－</b> exp 연산으로 ReLU보다 느림</p></div>
+<canvas data-f="elu" width="500" height="300"></canvas></div>
+<div class="fcard">
+<div><h4>SELU (Scaled ELU)</h4><div class="who">Klambauer, Unterthiner, Mayr & Hochreiter, 2017 「Self-Normalizing Neural Networks」</div>
+\[ f(z)=\lambda\begin{cases}z&z>0\\ \alpha(e^z-1)&z\le0\end{cases},\quad \lambda\approx1.0507,\ \alpha\approx1.6733 \]
+<p class="pros"><b class="p">＋</b> 특정 λ, α에서 활성값이 층을 지나며 평균 0·분산 1로 <strong>스스로 수렴</strong>(BatchNorm 없이 정규화)<br>
+<b class="c">－</b> LeCun 정규 초기화 + 완전연결망 + AlphaDropout 등 조건이 까다로움</p></div>
+<canvas data-f="selu" width="500" height="300"></canvas></div>
+<div class="box note"><div class="t">Maxout (Goodfellow 외, 2013)</div>\(f(\mathbf x)=\max_k(\mathbf w_k^\top\mathbf x+b_k)\). 정해진 모양 없이 여러 선형함수의 최댓값을 학습해 볼록 함수를 근사합니다. ReLU와 Leaky ReLU를 특수한 경우로 포함하지만, 파라미터가 k배로 늘어 널리 쓰이지는 않았습니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="c8">
+<h2><span class="ch">CHAPTER 08</span>4막 · 부드러운 게이트 시대 (2016~2019)</h2>
+<span class="era e4">ERA 4 · SMOOTH & NON-MONOTONIC</span>
+<p>새로운 발상은 "입력에 0~1 사이의 <strong>게이트 확률</strong>을 곱한다"는 것입니다. ReLU는 \(x\cdot\mathbb 1[x>0]\), 즉 입력을 0 또는 1로 딱 끊어 곱하는 함수로 볼 수 있습니다.
+이 하드 게이트를 <strong>부드러운 확률</strong>로 바꾸면 GELU와 SiLU가 나옵니다.</p>
+<div class="fcard">
+<div><h4>GELU (Gaussian Error Linear Unit)</h4><div class="who">Hendrycks & Gimpel, 2016 · BERT(2018), GPT-2/3, ViT가 채택</div>
+\[ \mathrm{GELU}(x)=x\,\Phi(x)\approx 0.5x\Big(1+\tanh\big[\sqrt{2/\pi}\,(x+0.044715x^3)\big]\Big) \]
+<p class="pros"><b class="p">＋</b> 입력이 클수록 통과 확률이 높은 확률적 게이트(\(\Phi\)=표준정규 CDF). 매끄럽고, 작은 음수를 살짝 허용하는 <strong>비단조</strong> 곡선<br>
+<b class="c">－</b> 정확한 계산은 erf가 필요(근사식 사용). ReLU보다 느림</p></div>
+<canvas data-f="gelu" width="500" height="300"></canvas></div>
+<div class="fcard">
+<div><h4>SiLU / Swish</h4><div class="who">SiLU: Hendrycks & Gimpel 2016, Elfwing 외 2017 · Swish: Ramachandran, Zoph & Le 2017 (자동 탐색으로 발견)</div>
+\[ \mathrm{SiLU}(x)=x\,\sigma(x),\qquad \mathrm{Swish}_\beta(x)=x\,\sigma(\beta x) \]
+<p class="pros"><b class="p">＋</b> GELU와 거의 같은 모양에 계산은 더 단순. β→∞이면 ReLU, β=0이면 x/2가 되는 ReLU와 선형 사이의 보간<br>
+<b class="c">－</b> 음수 영역 최솟값 ≈ −0.278 (x≈−1.28)</p></div>
+<canvas data-f="silu" width="500" height="300"></canvas></div>
+<p>Swish는 Google Brain이 <strong>강화학습 기반 탐색으로 수많은 수식 조합을 시험해 "발견"한</strong> 함수입니다. 결과가 이미 제안되었던 SiLU와 같다는 사실이 밝혀져
+오늘날 PyTorch에는 <code>nn.SiLU</code>라는 이름으로 들어 있습니다. EfficientNet, 그리고 5막의 SwiGLU 안에서 사용됩니다.</p>
+<div class="fcard">
+<div><h4>Mish</h4><div class="who">Misra, 2019 · YOLOv4가 채택</div>
+\[ \mathrm{Mish}(x)=x\tanh\big(\mathrm{softplus}(x)\big) \]
+<p class="pros"><b class="p">＋</b> Swish와 비슷하지만 더 매끄러운 곡률, 일부 비전 과제에서 소폭 향상<br><b class="c">－</b> exp·log·tanh 조합으로 연산 비용이 큼</p></div>
+<canvas data-f="mish" width="500" height="300"></canvas></div>
+<div class="box tip"><div class="t">왜 '비단조(non-monotonic)'가 도움이 되나</div>작은 음수 입력에 대해 출력이 살짝 음수로 내려갔다 0으로 돌아오는 "움푹 파인 곳"이 있습니다. 이 영역에서 기울기가 0이 아니므로 죽은 뉴런이 없고,
+곡선이 매끄러워 손실 지형도 부드러워집니다. 대규모 Transformer에서 ReLU 대비 일관된 소폭 향상이 보고되며 표준이 되었습니다.</div>
+</section>
+
+<!-- 9 -->
+<section id="c9">
+<h2><span class="ch">CHAPTER 09</span>5막 · GLU 계열과 LLM (2016~현재)</h2>
+<span class="era e5">ERA 5 · LEARNED GATES</span>
+<p>4막의 게이트는 <strong>입력 자기 자신</strong>으로 게이트를 만들었습니다(\(x\cdot\sigma(x)\)). 5막은 게이트를 <strong>별도의 선형 변환으로 학습</strong>합니다.</p>
+<div class="formula">\[ \mathrm{GLU}(\mathbf x)=(\mathbf xW+\mathbf b)\ \odot\ \sigma(\mathbf xV+\mathbf c) \qquad\text{(Dauphin 외, 2016 — 게이트 합성곱 언어모델)} \]</div>
+<p><strong>Shazeer (2020)</strong> 「GLU Variants Improve Transformer」는 Transformer의 FFN에서 게이트 쪽 활성화를 바꾼 변종들을 비교했습니다.</p>
+<table>
+<tr><th>변종</th><th>수식 (게이트 부분)</th><th>채택 모델</th></tr>
+<tr><td>GLU</td><td>\(\sigma(\mathbf xW)\odot\mathbf xV\)</td><td>게이트 CNN 언어모델</td></tr>
+<tr><td>ReGLU</td><td>\(\mathrm{ReLU}(\mathbf xW)\odot\mathbf xV\)</td><td>—</td></tr>
+<tr><td>GeGLU</td><td>\(\mathrm{GELU}(\mathbf xW)\odot\mathbf xV\)</td><td>T5 v1.1, Gemma</td></tr>
+<tr class="hl"><td>SwiGLU</td><td>\(\mathrm{SiLU}(\mathbf xW)\odot\mathbf xV\)</td><td>PaLM(2022), LLaMA(2023)과 그 후속 다수 오픈 LLM</td></tr>
+</table>
+<div class="fig">
+<svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg" font-family="Pretendard,sans-serif">
+  <defs><marker id="m9" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5c5049"/></marker></defs>
+  <g font-size="13" text-anchor="middle">
+    <text x="190" y="22" font-weight="700" fill="#b8532f">기존 FFN (2017 Transformer)</text>
+    <rect x="30" y="100" width="70" height="40" rx="8" fill="#e1eaf2" stroke="#3f6b8f"/><text x="65" y="125">x</text>
+    <rect x="130" y="100" width="80" height="40" rx="8" fill="#f6e3d8" stroke="#b8532f"/><text x="170" y="125">W₁ (d→4d)</text>
+    <rect x="235" y="100" width="70" height="40" rx="8" fill="#f5ecd4" stroke="#a8822d"/><text x="270" y="125">ReLU</text>
+    <rect x="330" y="100" width="40" height="40" rx="8" fill="#f6e3d8" stroke="#b8532f"/><text x="350" y="125">W₂</text>
+    <line x1="100" y1="120" x2="128" y2="120" stroke="#5c5049" marker-end="url(#m9)"/>
+    <line x1="210" y1="120" x2="233" y2="120" stroke="#5c5049" marker-end="url(#m9)"/>
+    <line x1="305" y1="120" x2="328" y2="120" stroke="#5c5049" marker-end="url(#m9)"/>
+    <line x1="395" y1="20" x2="395" y2="225" stroke="#e4d9c9" stroke-dasharray="4 4"/>
+    <text x="580" y="22" font-weight="700" fill="#6d4f8a">SwiGLU FFN (LLaMA)</text>
+    <rect x="415" y="100" width="50" height="40" rx="8" fill="#e1eaf2" stroke="#3f6b8f"/><text x="440" y="125">x</text>
+    <rect x="490" y="50" width="70" height="36" rx="8" fill="#f6e3d8" stroke="#b8532f"/><text x="525" y="73">W (gate)</text>
+    <rect x="490" y="155" width="70" height="36" rx="8" fill="#f6e3d8" stroke="#b8532f"/><text x="525" y="178">V (up)</text>
+    <rect x="580" y="50" width="60" height="36" rx="8" fill="#e3ece1" stroke="#5f7f63"/><text x="610" y="73">SiLU</text>
+    <circle cx="660" cy="120" r="16" fill="#ece3f2" stroke="#6d4f8a"/><text x="660" y="125" font-size="16">⊙</text>
+    <rect x="695" y="102" width="50" height="36" rx="8" fill="#f6e3d8" stroke="#b8532f"/><text x="720" y="125">W₂</text>
+    <path d="M465,115 L488,70" fill="none" stroke="#5c5049" marker-end="url(#m9)"/>
+    <path d="M465,125 L488,170" fill="none" stroke="#5c5049" marker-end="url(#m9)"/>
+    <line x1="560" y1="68" x2="578" y2="68" stroke="#5c5049" marker-end="url(#m9)"/>
+    <path d="M640,72 L652,106" fill="none" stroke="#5c5049" marker-end="url(#m9)"/>
+    <path d="M560,173 L650,134" fill="none" stroke="#5c5049" marker-end="url(#m9)"/>
+    <line x1="676" y1="120" x2="693" y2="120" stroke="#5c5049" marker-end="url(#m9)"/>
+    <text x="580" y="222" font-size="12" fill="#8a7d73">행렬이 3개 → 은닉폭을 4d에서 ⅔·4d ≈ 2.67d로 줄여 파라미터 수를 맞춤</text>
+    <text x="190" y="222" font-size="12" fill="#8a7d73">행렬 2개, 활성화는 고정 함수</text>
+  </g>
+</svg>
+<div class="cap">그림 2. 활성화 함수가 "고정된 곡선"에서 "학습되는 게이트 블록"으로 진화</div>
+</div>
+<div class="box key"><div class="t">5막의 의미</div>활성화 함수의 역사는 "어떤 곡선을 쓸까"에서 "<strong>무엇을 얼마나 통과시킬지를 망이 스스로 배우게 하자</strong>"로 이동했습니다.
+LSTM 게이트(1997)에서 시작된 게이팅 아이디어가 Transformer의 FFN까지 들어온 셈입니다. 왜 이것이 잘 되는지에 대해 Shazeer는 논문에서 이론적 설명 없이
+"신의 은총(divine benevolence) 덕분"이라고 농담처럼 적었는데, 지금도 완전히 해명된 것은 아닙니다.</div>
+</section>
+
+<!-- 10 -->
+<section id="c10">
+<h2><span class="ch">CHAPTER 10</span>출력층 함수 — 은닉층과는 다른 역사</h2>
+<p>은닉층 활성화는 ReLU → GELU로 계속 바뀌었지만, <strong>출력층 함수는 과제(task)에 따라 정해지며</strong> 거의 바뀌지 않았습니다.</p>
+<table>
+<tr><th>과제</th><th>출력층</th><th>짝이 되는 손실</th><th>비고</th></tr>
+<tr><td>회귀</td><td>항등 (없음)</td><td>MSE</td><td>출력 범위 제한 없음</td></tr>
+<tr><td>이진 분류</td><td>Sigmoid</td><td>BCE</td><td>2막의 sigmoid가 여기에 남음</td></tr>
+<tr><td>다중 분류</td><td>Softmax</td><td>Cross-Entropy</td><td>"softmax" 명칭: Bridle, 1990 (통계역학의 볼츠만 분포가 원형)</td></tr>
+<tr><td>다중 레이블</td><td>각 출력에 Sigmoid</td><td>BCE</td><td>클래스끼리 독립</td></tr>
+</table>
+<div class="formula">\[ \mathrm{softmax}(\mathbf z)_k=\frac{e^{z_k}}{\sum_j e^{z_j}} \qquad \text{(Attention 가중치 계산에도 사용)} \]</div>
+<div class="box warn"><div class="t">PyTorch 주의</div><code>nn.CrossEntropyLoss</code>와 <code>nn.BCEWithLogitsLoss</code>는 softmax/sigmoid를 내장하므로 모델 끝에 별도로 붙이지 않고 logits를 그대로 넣습니다.</div>
+</section>
+
+<!-- 11 -->
+<section id="c11">
+<h2><span class="ch">CHAPTER 11</span>인터랙티브 플로터 — 직접 겹쳐 보기</h2>
+<div class="lab">
+<div class="lt">◆ LAB 2 · 함수 / 도함수 비교</div>
+<div class="ctrl" id="plotChecks"></div>
+<div class="ctrl">
+  <button class="pri" id="modeF">f(x) 보기</button><button id="modeD">f′(x) 보기</button>
+  <span class="readout" id="hover">그래프 위에 마우스를 올리면 값이 표시됩니다</span>
+</div>
+<canvas id="plot" width="900" height="420"></canvas>
+</div>
+<p>관찰 포인트: <strong>f′ 모드</strong>에서 Sigmoid의 최댓값이 0.25에 머무는 것, tanh가 원점에서만 1인 것, ReLU가 양수에서 정확히 1인 것,
+GELU·SiLU가 1보다 살짝 큰 값(오버슈트)과 음수 구간에서 작은 음의 기울기를 갖는 것을 비교해 보세요.</p>
+</section>
+
+<!-- 12 -->
+<section id="c12">
+<h2><span class="ch">CHAPTER 12</span>종합 비교표 · 선택 가이드</h2>
+<table>
+<tr><th>함수</th><th>등장</th><th>출력 범위</th><th>f′ 범위</th><th>0 중심</th><th>매끄러움</th><th>죽은 뉴런</th><th>비용</th></tr>
+<tr><td>Step</td><td>1943</td><td>{0,1}</td><td>0</td><td>✗</td><td>✗</td><td>—</td><td>최저</td></tr>
+<tr><td>Sigmoid</td><td>1986</td><td>(0,1)</td><td>(0, 0.25]</td><td>✗</td><td>✓</td><td>포화</td><td>exp</td></tr>
+<tr><td>tanh</td><td>~1990s</td><td>(−1,1)</td><td>(0, 1]</td><td>✓</td><td>✓</td><td>포화</td><td>exp</td></tr>
+<tr><td>ReLU</td><td>2010</td><td>[0,∞)</td><td>{0,1}</td><td>✗</td><td>✗</td><td>있음</td><td>최저</td></tr>
+<tr><td>Leaky ReLU</td><td>2013</td><td>(−∞,∞)</td><td>{α,1}</td><td>△</td><td>✗</td><td>없음</td><td>최저</td></tr>
+<tr><td>ELU</td><td>2015</td><td>(−α,∞)</td><td>(0,1]</td><td>△</td><td>△(α=1이면 C¹)</td><td>없음</td><td>exp</td></tr>
+<tr><td>SELU</td><td>2017</td><td>(−λα,∞)</td><td>(0, λα]</td><td>✓(자기정규화)</td><td>✗</td><td>없음</td><td>exp</td></tr>
+<tr><td>GELU</td><td>2016</td><td>≈[−0.17,∞)</td><td>≈[−0.13, 1.13]</td><td>△</td><td>✓</td><td>없음</td><td>erf/tanh</td></tr>
+<tr><td>SiLU/Swish</td><td>2017</td><td>≈[−0.28,∞)</td><td>≈[−0.10, 1.10]</td><td>△</td><td>✓</td><td>없음</td><td>exp</td></tr>
+<tr><td>Mish</td><td>2019</td><td>≈[−0.31,∞)</td><td>≈[−0.11, 1.09]</td><td>△</td><td>✓</td><td>없음</td><td>높음</td></tr>
+<tr><td>SwiGLU</td><td>2020</td><td colspan="2">블록 (학습되는 게이트)</td><td>—</td><td>✓</td><td>없음</td><td>행렬 +1개</td></tr>
+</table>
+<h3>2026년 기준 선택 가이드</h3>
+<table>
+<tr><th>상황</th><th>추천</th><th>이유</th></tr>
+<tr><td>CNN·MLP 기본값</td><td><strong>ReLU</strong> (+ He 초기화 + BatchNorm)</td><td>빠르고 검증됨. 문제 없으면 바꿀 이유 없음</td></tr>
+<tr><td>죽은 뉴런이 관찰됨</td><td>Leaky ReLU, ELU</td><td>음수 기울기 확보</td></tr>
+<tr><td>Transformer 인코더 / ViT</td><td><strong>GELU</strong></td><td>BERT·ViT의 표준</td></tr>
+<tr><td>LLM (디코더) FFN</td><td><strong>SwiGLU</strong></td><td>LLaMA 이후 오픈 LLM의 사실상 표준</td></tr>
+<tr><td>경량 비전 모델</td><td>SiLU, Hard-Swish</td><td>EfficientNet·MobileNetV3 계열</td></tr>
+<tr><td>RNN/LSTM 게이트</td><td>Sigmoid(게이트) + tanh(상태)</td><td>0~1 비율과 ±값이 필요</td></tr>
+<tr><td>출력층</td><td>과제에 따라 (10장 표)</td><td>은닉층 유행과 무관</td></tr>
+</table>
+</section>
+
+<!-- 13 -->
+<section id="c13">
+<h2><span class="ch">CHAPTER 13</span>PyTorch 실습 — 값과 기울기 직접 확인</h2>
+<div class="code-label">PYTHON · activation_values.py</div>
+<div class="code"><pre><span class="kw">import</span> torch, torch.nn <span class="kw">as</span> nn, torch.nn.functional <span class="kw">as</span> F
+x = torch.tensor([-3.0, -1.0, 0.0, 1.0, 3.0])
+acts = {
+    <span class="str">&quot;Sigmoid&quot;</span>: nn.Sigmoid(), <span class="str">&quot;Tanh&quot;</span>: nn.Tanh(), <span class="str">&quot;ReLU&quot;</span>: nn.ReLU(),
+    <span class="str">&quot;LeakyReLU&quot;</span>: nn.LeakyReLU(0.01), <span class="str">&quot;ELU&quot;</span>: nn.ELU(), <span class="str">&quot;SELU&quot;</span>: nn.SELU(),
+    <span class="str">&quot;Softplus&quot;</span>: nn.Softplus(), <span class="str">&quot;GELU&quot;</span>: nn.GELU(), <span class="str">&quot;SiLU&quot;</span>: nn.SiLU(), <span class="str">&quot;Mish&quot;</span>: nn.Mish(),
+}
+print(<span class="str">f&quot;{&#x27;x&#x27;:&gt;10}&quot;</span>, <span class="str">&quot;&quot;</span>.join(<span class="str">f&quot;{v:&gt;9.1f}&quot;</span> <span class="kw">for</span> v <span class="kw">in</span> x.tolist()))
+<span class="kw">for</span> name, f <span class="kw">in</span> acts.items():
+    print(<span class="str">f&quot;{name:&gt;10}&quot;</span>, <span class="str">&quot;&quot;</span>.join(<span class="str">f&quot;{v:&gt;9.4f}&quot;</span> <span class="kw">for</span> v <span class="kw">in</span> f(x).tolist()))
+print()
+<span class="cm"># 도함수 (autograd)</span>
+print(<span class="str">&quot;미분값 f&#x27;(x)&quot;</span>)
+<span class="kw">for</span> name, f <span class="kw">in</span> acts.items():
+    xx = x.clone().requires_grad_(True)
+    f(xx).sum().backward()
+    print(<span class="str">f&quot;{name:&gt;10}&quot;</span>, <span class="str">&quot;&quot;</span>.join(<span class="str">f&quot;{v:&gt;9.4f}&quot;</span> <span class="kw">for</span> v <span class="kw">in</span> xx.grad.tolist()))</pre></div>
+<div class="out-label">OUTPUT</div>
+<div class="out"><pre>         x      -3.0     -1.0      0.0      1.0      3.0
+   Sigmoid    0.0474   0.2689   0.5000   0.7311   0.9526
+      Tanh   -0.9951  -0.7616   0.0000   0.7616   0.9951
+      ReLU    0.0000   0.0000   0.0000   1.0000   3.0000
+ LeakyReLU   -0.0300  -0.0100   0.0000   1.0000   3.0000
+       ELU   -0.9502  -0.6321   0.0000   1.0000   3.0000
+      SELU   -1.6706  -1.1113   0.0000   1.0507   3.1521
+  Softplus    0.0486   0.3133   0.6931   1.3133   3.0486
+      GELU   -0.0041  -0.1587   0.0000   0.8413   2.9959
+      SiLU   -0.1423  -0.2689   0.0000   0.7311   2.8577
+      Mish   -0.1456  -0.3034   0.0000   0.8651   2.9865
+
+미분값 f&#x27;(x)
+   Sigmoid    0.0452   0.1966   0.2500   0.1966   0.0452
+      Tanh    0.0099   0.4200   1.0000   0.4200   0.0099
+      ReLU    0.0000   0.0000   0.0000   1.0000   1.0000
+ LeakyReLU    0.0100   0.0100   0.0100   1.0000   1.0000
+       ELU    0.0498   0.3679   1.0000   1.0000   1.0000
+      SELU    0.0875   0.6468   1.7581   1.0507   1.0507
+  Softplus    0.0474   0.2689   0.5000   0.7311   0.9526
+      GELU   -0.0119  -0.0833   0.5000   1.0833   1.0119
+      SiLU   -0.0881   0.0723   0.5000   0.9277   1.0881
+      Mish   -0.0934   0.0592   0.6000   1.0490   1.0211</pre></div>
+<div class="box note"><div class="t">출력에서 읽을 것</div>
+① Sigmoid 미분의 최댓값 0.25(x=0) ② tanh는 x=±3에서 0.0099로 포화 ③ ReLU는 PyTorch에서 x=0의 기울기를 0으로 정의
+④ GELU·SiLU·Mish는 x=−3에서 작은 <strong>음수</strong> 기울기, x=1에서 1보다 큰 기울기(비단조성) ⑤ SELU는 x=0의 기울기를 왼쪽 극한값 λα≈1.758로 처리</div>
+
+<div class="code-label">PYTHON · vanishing_gradient.py</div>
+<div class="code"><pre><span class="kw">import</span> torch, torch.nn <span class="kw">as</span> nn
+torch.manual_seed(0)
+<span class="kw">def</span> grad_norms(act, depth=20, width=64):
+    layers = []
+    <span class="kw">for</span> _ <span class="kw">in</span> range(depth):
+        lin = nn.Linear(width, width)
+        <span class="kw">if</span> <span class="kw">isinstance</span>(act, nn.ReLU):
+            nn.init.kaiming_normal_(lin.weight, nonlinearity=<span class="str">&quot;relu&quot;</span>)
+        <span class="kw">else</span>:
+            nn.init.xavier_normal_(lin.weight)
+        nn.init.zeros_(lin.bias)
+        layers += [lin, act]
+    net = nn.Sequential(*layers)
+    x = torch.randn(256, width)
+    net(x).pow(2).mean().backward()
+    lins = [m <span class="kw">for</span> m <span class="kw">in</span> net <span class="kw">if</span> <span class="kw">isinstance</span>(m, nn.Linear)]
+    <span class="kw">return</span> lins[0].weight.grad.norm().item(), lins[-1].weight.grad.norm().item()
+<span class="kw">for</span> name, act <span class="kw">in</span> [(<span class="str">&quot;Sigmoid&quot;</span>, nn.Sigmoid()), (<span class="str">&quot;Tanh&quot;</span>, nn.Tanh()), (<span class="str">&quot;ReLU&quot;</span>, nn.ReLU())]:
+    first, last = grad_norms(act)
+    print(<span class="str">f&quot;{name:&gt;8}  1층 grad={first:.2e}  20층 grad={last:.2e}  비율(1층/20층)={first/last:.2e}&quot;</span>)</pre></div>
+<div class="out-label">OUTPUT</div>
+<div class="out"><pre> Sigmoid  1층 grad=1.79e-14  20층 grad=1.23e-01  비율(1층/20층)=1.46e-13
+    Tanh  1층 grad=9.61e-03  20층 grad=1.63e-02  비율(1층/20층)=5.91e-01
+    ReLU  1층 grad=8.39e-01  20층 grad=2.93e+00  비율(1층/20층)=2.86e-01</pre></div>
+
+<div class="code-label">PYTHON · swiglu_ffn.py</div>
+<div class="code"><pre><span class="kw">import</span> torch, torch.nn <span class="kw">as</span> nn, torch.nn.functional <span class="kw">as</span> F
+
+<span class="kw">class</span> FFN_ReLU(nn.Module):         <span class="cm"> # 2017 Transformer 원형</span>
+    <span class="kw">def</span> __init__(self, d, h):
+        super().__init__()
+        self.w1, self.w2 = nn.Linear(d, h, bias=False), nn.Linear(h, d, bias=False)
+    <span class="kw">def</span> forward(self, x):
+        <span class="kw">return</span> self.w2(F.relu(self.w1(x)))
+
+<span class="kw">class</span> FFN_SwiGLU(nn.Module):       <span class="cm"> # LLaMA 스타일</span>
+    <span class="kw">def</span> __init__(self, d, h):
+        super().__init__()
+        self.w_gate = nn.Linear(d, h, bias=False)
+        self.w_up   = nn.Linear(d, h, bias=False)
+        self.w_down = nn.Linear(h, d, bias=False)
+    <span class="kw">def</span> forward(self, x):
+        <span class="kw">return</span> self.w_down(F.silu(self.w_gate(x)) * self.w_up(x))
+
+d = 512
+relu_ffn   = FFN_ReLU(d, 4 * d)
+swiglu_ffn = FFN_SwiGLU(d, int(2 / 3 * 4 * d))  <span class="cm"> # 행렬 3개 → 은닉폭 2/3로 축소</span>
+count = <span class="kw">lambda</span> m: sum(p.numel() <span class="kw">for</span> p <span class="kw">in</span> m.parameters())
+x = torch.randn(2, 10, d)
+print(<span class="str">&quot;ReLU FFN   params:&quot;</span>, <span class="str">f&quot;{count(relu_ffn):,}&quot;</span>, <span class="str">&quot; out:&quot;</span>, tuple(relu_ffn(x).shape))
+print(<span class="str">&quot;SwiGLU FFN params:&quot;</span>, <span class="str">f&quot;{count(swiglu_ffn):,}&quot;</span>, <span class="str">&quot; out:&quot;</span>, tuple(swiglu_ffn(x).shape))</pre></div>
+<div class="out-label">OUTPUT</div>
+<div class="out"><pre>ReLU FFN   params: 2,097,152  out: (2, 10, 512)
+SwiGLU FFN params: 2,096,640  out: (2, 10, 512)</pre></div>
+</section>
+
+<!-- 14 -->
+<section id="c14">
+<h2><span class="ch">CHAPTER 14</span>퀴즈 · 종합 체크리스트</h2>
+<div class="score" id="score">0 / 10 정답</div>
+<div id="quiz"></div>
+<h3>종합 체크리스트</h3>
+<ul class="check">
+<li><label><input type="checkbox">비선형 활성화가 없으면 깊은 망이 단일 선형층과 같아짐을 수식으로 보일 수 있다</label></li>
+<li><label><input type="checkbox">계단함수가 다층 학습을 막은 이유(미분 불가)를 설명할 수 있다</label></li>
+<li><label><input type="checkbox">sigmoid′ ≤ 0.25, tanh′ ≤ 1을 유도하고 기울기 소실과 연결할 수 있다</label></li>
+<li><label><input type="checkbox">0 중심 출력이 중요한 이유(기울기 부호 동일 문제)를 안다</label></li>
+<li><label><input type="checkbox">ReLU가 AlexNet(2012)으로 대중화된 배경과 장단점을 설명할 수 있다</label></li>
+<li><label><input type="checkbox">Dying ReLU와 이를 해결한 Leaky/PReLU/ELU/SELU의 차이를 안다</label></li>
+<li><label><input type="checkbox">GELU = x·Φ(x), SiLU = x·σ(x)를 "부드러운 게이트"로 해석할 수 있다</label></li>
+<li><label><input type="checkbox">SwiGLU의 구조(SiLU(xW)⊙xV)와 LLaMA 채택 사실을 안다</label></li>
+<li><label><input type="checkbox">출력층 함수(sigmoid/softmax/항등)와 손실의 짝을 맞출 수 있다</label></li>
+<li><label><input type="checkbox">상황별 활성화 선택 가이드를 설명할 수 있다</label></li>
+</ul>
+</section>
+</main>
+</div>
+
+<script>
+/* ---- function defs ---- */
+const erf=x=>{const s=Math.sign(x);x=Math.abs(x);const t=1/(1+0.3275911*x);
+  const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;};
+const sg=x=>1/(1+Math.exp(-x)), sp=x=>x>20?x:Math.log1p(Math.exp(x));
+const F={
+  step:{n:'Step',c:'#3f6b8f',f:x=>x>=0?1:0},
+  sigmoid:{n:'Sigmoid',c:'#a8822d',f:sg},
+  tanh:{n:'tanh',c:'#2e8b8b',f:Math.tanh},
+  relu:{n:'ReLU',c:'#b8532f',f:x=>Math.max(0,x)},
+  softplus:{n:'Softplus',c:'#8f6b5a',f:sp},
+  leaky:{n:'Leaky ReLU',c:'#d9825b',f:x=>x>=0?x:0.01*x},
+  prelu:{n:'PReLU (a=0.25)',c:'#c06a46',f:x=>x>=0?x:0.25*x},
+  elu:{n:'ELU',c:'#a33a3a',f:x=>x>0?x:Math.exp(x)-1},
+  selu:{n:'SELU',c:'#7a2f2f',f:x=>1.0507*(x>0?x:1.67326*(Math.exp(x)-1))},
+  gelu:{n:'GELU',c:'#5f7f63',f:x=>0.5*x*(1+erf(x/Math.SQRT2))},
+  silu:{n:'SiLU/Swish',c:'#4a6fd0',f:x=>x*sg(x)},
+  mish:{n:'Mish',c:'#6d4f8a',f:x=>x*Math.tanh(sp(x))}
+};
+const D=(k,x)=>{const h=1e-4;return (F[k].f(x+h)-F[k].f(x-h))/(2*h);};
+
+/* ---- mini cards ---- */
+document.querySelectorAll('canvas[data-f]').forEach(cv=>{
+  const k=cv.dataset.f,c=cv.getContext('2d'),W=cv.width,H=cv.height;
+  const X0=-4,X1=4,Y0=-1.6,Y1=3.2,px=x=>(x-X0)/(X1-X0)*W,py=y=>H-(y-Y0)/(Y1-Y0)*H;
+  c.fillStyle='#fffdf9';c.fillRect(0,0,W,H);
+  c.strokeStyle='#e4d9c9';c.lineWidth=1;
+  for(let x=-4;x<=4;x++){c.beginPath();c.moveTo(px(x),0);c.lineTo(px(x),H);c.stroke();}
+  for(let y=-1;y<=3;y++){c.beginPath();c.moveTo(0,py(y));c.lineTo(W,py(y));c.stroke();}
+  c.strokeStyle='#8a7d73';c.lineWidth=1.5;c.beginPath();c.moveTo(0,py(0));c.lineTo(W,py(0));c.moveTo(px(0),0);c.lineTo(px(0),H);c.stroke();
+  const line=(fn,col,dash)=>{c.strokeStyle=col;c.lineWidth=dash?2.5:4;c.setLineDash(dash?[8,6]:[]);c.beginPath();let prev=null;
+    for(let i=0;i<=W;i++){const x=X0+i/W*(X1-X0),y=fn(x);
+      if(prev!==null&&Math.abs(y-prev)>1)c.moveTo(i,py(y));else i?c.lineTo(i,py(y)):c.moveTo(i,py(y));prev=y;}c.stroke();c.setLineDash([]);};
+  if(k!=='step') line(x=>D(k,x),'#9a8b7d',true);
+  line(F[k].f,F[k].c,false);
+  c.font='22px Pretendard,sans-serif';c.fillStyle=F[k].c;c.fillText('f(x)',W-70,40);
+  if(k!=='step'){c.fillStyle='#9a8b7d';c.fillText("f′(x)",W-70,72);}
+});
+
+/* ---- big plotter ---- */
+(function(){
+  const cv=document.getElementById('plot'),c=cv.getContext('2d'),W=cv.width,H=cv.height;
+  const sel=new Set(['sigmoid','tanh','relu','gelu']);let mode='f';
+  const box=document.getElementById('plotChecks');
+  Object.keys(F).forEach(k=>{const l=document.createElement('label');l.className='chk';
+    l.innerHTML=`<input type="checkbox" ${sel.has(k)?'checked':''}><span style="color:${F[k].c};font-weight:700">${F[k].n}</span>`;
+    l.querySelector('input').onchange=e=>{e.target.checked?sel.add(k):sel.delete(k);draw();};box.appendChild(l);});
+  const X0=-5,X1=5;let Y0,Y1;const px=x=>50+(x-X0)/(X1-X0)*(W-70);const py=y=>H-30-(y-Y0)/(Y1-Y0)*(H-50);
+  function draw(){
+    [Y0,Y1]=mode==='f'?[-2,4]:[-0.4,1.9];
+    c.clearRect(0,0,W,H);c.font='12px JetBrains Mono';c.fillStyle='#8a7d73';c.strokeStyle='#efe6d8';c.lineWidth=1;
+    for(let x=X0;x<=X1;x++){c.beginPath();c.moveTo(px(x),py(Y0));c.lineTo(px(x),py(Y1));c.stroke();c.fillText(x,px(x)-4,H-12);}
+    const st=mode==='f'?1:0.25;for(let y=Math.ceil(Y0/st)*st;y<=Y1+1e-9;y+=st){c.beginPath();c.moveTo(px(X0),py(y));c.lineTo(px(X1),py(y));c.stroke();c.fillText(y.toFixed(2),4,py(y)+4);}
+    c.strokeStyle='#8a7d73';c.lineWidth=1.5;c.beginPath();c.moveTo(px(X0),py(0));c.lineTo(px(X1),py(0));c.moveTo(px(0),py(Y0));c.lineTo(px(0),py(Y1));c.stroke();
+    sel.forEach(k=>{c.strokeStyle=F[k].c;c.lineWidth=2.6;c.beginPath();let prev=null;
+      for(let i=0;i<=600;i++){const x=X0+i/600*(X1-X0);let y=mode==='f'?F[k].f(x):D(k,x);
+        if(k==='step'&&mode==='d')y=0;y=Math.max(Y0-1,Math.min(Y1+1,y));
+        if(prev!==null&&Math.abs(y-prev)>0.8)c.moveTo(px(x),py(y));else i?c.lineTo(px(x),py(y)):c.moveTo(px(x),py(y));prev=y;}c.stroke();});
+    document.getElementById('modeF').className=mode==='f'?'pri':'';document.getElementById('modeD').className=mode==='d'?'pri':'';
+  }
+  document.getElementById('modeF').onclick=()=>{mode='f';draw();};
+  document.getElementById('modeD').onclick=()=>{mode='d';draw();};
+  cv.onmousemove=e=>{const r=cv.getBoundingClientRect();const x=X0+((e.clientX-r.left)*W/r.width-50)/(W-70)*(X1-X0);
+    if(x<X0||x>X1)return;document.getElementById('hover').textContent=`x=${x.toFixed(2)} · `+[...sel].map(k=>`${F[k].n}=${(mode==='f'?F[k].f(x):(k==='step'?0:D(k,x))).toFixed(4)}`).join(' · ');};
+  draw();
+})();
+
+/* ---- depth lab ---- */
+(function(){
+  const s=document.getElementById('depth');
+  const upd=()=>{const L=+s.value;document.getElementById('depthv').textContent='L = '+L;
+    [['sig',0.25],['tanh',0.42],['relu',1]].forEach(([k,v])=>{const p=Math.pow(v,L);
+      document.getElementById('v_'+k).textContent=p.toExponential(2);
+      document.getElementById('j_'+k).innerHTML=p<1e-4?'<b style="color:#a33a3a">소실</b>':p<1e-1?'<b style="color:#a8822d">약화</b>':'<b style="color:#5f7f63">유지</b>';});};
+  s.oninput=upd;upd();
+})();
+
+/* ---- scrollspy ---- */
+(function(){const links=[...document.querySelectorAll('#toc a')],secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+  const spy=()=>{let i=0;const y=scrollY+120;secs.forEach((s,k)=>{if(s.offsetTop<=y)i=k;});links.forEach((a,k)=>a.classList.toggle('active',k===i));};
+  addEventListener('scroll',spy);spy();})();
+
+/* ---- quiz ---- */
+(function(){
+const Q=[
+{q:"활성화 함수가 모두 항등함수(선형)인 10층 신경망의 표현력은?",o:["10층 비선형망과 같다","단일 선형변환과 같다","XOR을 풀 수 있다","무한하다"],a:1,e:"선형변환의 합성은 선형변환입니다: W₂(W₁x+b₁)+b₂ = W'x+b'."},
+{q:"1969년 이후 퍼셉트론 연구가 침체된 직접적 원인과 가장 관련 깊은 활성화 함수의 성질은?",o:["출력이 확률이 아님","미분 불가능해 다층망을 기울기로 학습할 수 없음","계산이 느림","음수 출력이 없음"],a:1,e:"계단함수는 도함수가 0이거나 정의되지 않아 은닉층에 오차를 전달할 수 없었습니다."},
+{q:"Sigmoid 도함수의 최댓값은?",o:["1","0.5","0.25","0.1"],a:2,e:"σ'(z)=σ(1−σ)는 σ=0.5(z=0)일 때 0.5×0.5=0.25로 최대입니다."},
+{q:"tanh가 sigmoid보다 은닉층에서 선호된 주된 이유는?",o:["포화하지 않음","0 중심 출력과 더 큰 기울기","계산이 더 빠름","출력이 확률"],a:1,e:"출력 (−1,1)로 0 중심이며 원점 기울기 1(sigmoid의 4배)입니다. 포화는 여전히 존재합니다."},
+{q:"ReLU 대중화의 결정적 계기가 된 2012년 모델은?",o:["LeNet-5","AlexNet","ResNet","BERT"],a:1,e:"AlexNet 논문은 ReLU가 tanh보다 약 6배 빠르게 수렴함을 보였고 ImageNet에서 압승했습니다."},
+{q:"Dying ReLU 문제의 원인은?",o:["양수 영역 기울기가 1보다 큼","음수 입력에서 기울기가 0이라 한번 갇히면 갱신되지 않음","출력이 0 중심","exp 오버플로"],a:1,e:"모든 샘플에서 입력이 음수가 되면 기울기 0 → 영원히 비활성. Leaky/PReLU/ELU가 해결책."},
+{q:"PReLU를 제안한 논문에서 함께 제안되어 지금도 널리 쓰이는 것은?",o:["Xavier 초기화","He 초기화","BatchNorm","Dropout"],a:1,e:"He 외(2015) 「Delving Deep into Rectifiers」에서 PReLU와 He(Kaiming) 초기화를 함께 제안했습니다."},
+{q:"GELU(x)의 정의는? (Φ: 표준정규 누적분포함수)",o:["x·σ(x)","x·Φ(x)","max(0,x)","ln(1+eˣ)"],a:1,e:"GELU = x·Φ(x). x·σ(x)는 SiLU/Swish입니다."},
+{q:"Swish(β=1)와 같은 함수는?",o:["GELU","SiLU","Mish","ELU"],a:1,e:"Swish₁(x)=x·σ(x)=SiLU(x). PyTorch에는 nn.SiLU로 구현되어 있습니다."},
+{q:"LLaMA의 FFN에서 사용하는 활성화 블록은?",o:["ReLU","GELU","SwiGLU","Maxout"],a:2,e:"SwiGLU = (SiLU(xW) ⊙ xV)W₂. Shazeer(2020) 제안, PaLM·LLaMA가 채택했습니다."}
+];
+const box=document.getElementById('quiz');let sc=0;
+Q.forEach((it,i)=>{const d=document.createElement('div');d.className='q';
+  d.innerHTML=`<div class="qt">Q${i+1}. ${it.q}</div>`+it.o.map((o,j)=>`<label><input type="radio" name="q${i}" value="${j}"> ${'①②③④'[j]} ${o}</label>`).join('')+
+  `<div class="ex"><strong>정답 ${'①②③④'[it.a]}</strong> — ${it.e}</div>`;
+  d.querySelectorAll('input').forEach(inp=>inp.onchange=()=>{if(d.classList.contains('done'))return;d.classList.add('done');const v=+inp.value;
+    d.querySelectorAll('label').forEach((lb,j)=>{if(j===it.a)lb.classList.add('ok');else if(j===v)lb.classList.add('no');lb.querySelector('input').disabled=true;});
+    if(v===it.a)sc++;document.getElementById('score').textContent=`${sc} / ${Q.length} 정답`;});
+  box.appendChild(d);});
+})();
+</script>
+</body>
+</html>
